@@ -4,7 +4,10 @@ F-PLUG stat
 
 compile
 -------
-make
+
+::
+
+    make
 
 usage
 -----
