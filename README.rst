@@ -10,4 +10,5 @@ usage
 -----
 
 ::
+
     fplugstat -d /dev/rfcomm1 -thiw
