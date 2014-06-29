@@ -127,7 +127,7 @@ get_status(int fd, int check_status)
 			}
 			if (buf[5] == 0x11 && buf[10] == 0x72 && buf[13] == 2) break;
 		}
-		printf( "%.1lf success\n", (double)(buf[14] + (buf[15] << 8)) / 10.0);
+		printf( "%.1lf success\n", (double)((int)buf[14] + ((int)buf[15] << 8)) / 10.0);
 	}
 	if (check_status & 0x02) {
 		while (1) {
@@ -137,7 +137,7 @@ get_status(int fd, int check_status)
 			}
 			if (buf[5] == 0x12 && buf[10] == 0x72 && buf[13] == 1) break;
 		}
-		printf( "%d success\n", buf[14]);
+		printf( "%d success\n", (int)buf[14]);
 	}
 	if (check_status & 0x04) {
 		while (1) {
@@ -147,7 +147,7 @@ get_status(int fd, int check_status)
 			}
                         if (buf[5] == 0x0d && buf[10] == 0x72 && buf[13] == 2) break;
 		}
-                printf("%d success\n", buf[14] + (buf[15] << 8));
+                printf("%d success\n", (int)buf[14] + ((int)buf[15] << 8));
 	}
 	if (check_status & 0x08) {
 		while (1) {
@@ -157,7 +157,7 @@ get_status(int fd, int check_status)
 			}
                         if (buf[5] == 0x22 && buf[10] == 0x72 && buf[13] == 2) break;
 		}
-		printf("%.1lf success\n", (double)(buf[14] + (buf[15] << 8)) / 10);
+		printf("%.1lf success\n", (double)((int)buf[14] + ((int)buf[15] << 8)) / 10);
 	}
 
 	return 0;
