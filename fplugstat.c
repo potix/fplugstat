@@ -56,12 +56,12 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Usage: %s [-d <open_device>] [-thiw]\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
-	if ((fd = open(open_dev, O_RDWR )) < 0) {
+	if ((fd = open(open_dev, O_RDWR)) < 0) {
 		fprintf(stderr, "can not open device %s\n", open_dev);
 		exit(EXIT_FAILURE);
 	}
     
-	if (tcgetattr( fd, &oldtio )) {
+	if (tcgetattr(fd, &oldtio)) {
 		fprintf(stderr, "can not get terminal attribute %s\n", open_dev);
 		exit(EXIT_FAILURE);
 	}
@@ -71,7 +71,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "can not set terminal attribute %s\n", open_dev);
 		exit(EXIT_FAILURE);
 	}
-	if (tcgetattr( fd, &tmptio )) {
+	if (tcgetattr(fd, &tmptio)) {
 		fprintf(stderr, "can not get terminal attribute %s\n", open_dev);
 		exit(EXIT_FAILURE);
 	}
