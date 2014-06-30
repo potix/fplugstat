@@ -117,9 +117,8 @@ do_request(int fd, const char *request, size_t request_size, unsigned char *resp
 static int
 get_status(int fd, int check_status)
 {
-	unsigned char buf[256];
+	unsigned char buf[32];
 	size_t buf_size;
-	int rlen;
 	int i;
 
 	if (check_status & 0x01) {
@@ -131,8 +130,7 @@ get_status(int fd, int check_status)
 				return 1;
 			}
 			if (buf[5] != 0x00) {
-				rlen = read(fd, &buf[buf_size], sizeof(buf) - buf_size);
-				buf_size += rlen;
+				read(fd, &buf[buf_size], sizeof(buf) - buf_size);
 			}
 			if (buf[5] == 0x11 && buf[10] == 0x72 && buf[13] == 2) {
 				break;
@@ -154,8 +152,7 @@ get_status(int fd, int check_status)
 				return 1;
 			}
 			if (buf[5] != 0x00) {
-				rlen = read(fd, &buf[buf_size], sizeof(buf) - buf_size);
-				buf_size += rlen;
+				read(fd, &buf[buf_size], sizeof(buf) - buf_size);
 			}
 			if (buf[5] == 0x12 && buf[10] == 0x72 && buf[13] == 1) {
 				break;
@@ -177,8 +174,7 @@ get_status(int fd, int check_status)
 				return 1;
 			}
 			if (buf[5] != 0x00) {
-				rlen = read(fd, &buf[buf_size], sizeof(buf) - buf_size);
-				buf_size += rlen;
+				read(fd, &buf[buf_size], sizeof(buf) - buf_size);
 			}
                         if (buf[5] == 0x0d && buf[10] == 0x72 && buf[13] == 2) {
 				break;
@@ -200,8 +196,7 @@ get_status(int fd, int check_status)
 				return 1;
 			}
 			if (buf[5] != 0x00) {
-				rlen = read(fd, &buf[buf_size], sizeof(buf) - buf_size);
-				buf_size += rlen;
+				read(fd, &buf[buf_size], sizeof(buf) - buf_size);
 			}
                         if (buf[5] == 0x22 && buf[10] == 0x72 && buf[13] == 2) {
 				break;
