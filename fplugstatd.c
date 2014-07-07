@@ -85,12 +85,12 @@ parse_command_arguments(
 			fplugd->foreground = 1;
 			break;
 		default:
-			fprintf(stderr, "Usage: %s [[-d <open_device>]...] [-thiw]\n", argv[0]);
+			fprintf(stderr, "Usage: %s [[-d <device address>]...] [-thiw]\n", argv[0]);
 			return 1;
 		}
 	}
 	if (fplugd->check_status == 0) {
-		fprintf(stderr, "Usage: %s [[-d <open_device>]...] [-thiw]\n", argv[0]);
+		fprintf(stderr, "Usage: %s [[-d <device address>]...] [-thiw]\n", argv[0]);
 		return 1;
 	}
 
@@ -107,6 +107,7 @@ terminate(
 
         event_del(&fplugd->sigterm_event);
         event_del(&fplugd->sigint_event);
+        event_del(&fplugd->timer_event);
 }
 
 static int
@@ -118,8 +119,7 @@ connect_bluetooth(
 	fplug_device->saddr.rc_channel = (uint8_t)1;
 	str2ba(fplug_device->device_address, &fplug_device->saddr.rc_bdaddr);
 	if (connect(fplug_device->sd, (struct sockaddr *)&fplug_device->saddr, sizeof(fplug_device->saddr)) < 0) {
-		fprintf(stderr, "can not connect bluetooth\n");
-		perror("can not connect bluetooth\n");
+		fprintf(stderr, "can not connect bluetooth (%s)\n", strerror(errno));
 		goto error;
 	}
 	fplug_device->connected = 1;
@@ -337,7 +337,8 @@ main(
 	}
 	fplugd.timer_tv.tv_sec = 5;
 	fplugd.timer_tv.tv_usec = 0;
-	evtimer_set(&fplugd.timer_event, statistics_main, &fplugd);
+	//evtimer_set(&fplugd.timer_event, statistics_main, &fplugd);
+	event_set(&fplugd.timer_event, -1, EV_PERSIST, statistics_main, &fplugd);
 	event_base_set(fplugd.event_base, &fplugd.timer_event);
 	evtimer_add(&fplugd.timer_event, &fplugd.timer_tv);
 	if (event_base_dispatch(fplugd.event_base) == -1) {
