@@ -29,7 +29,7 @@ struct fplug_device {
 typedef struct fplug_device fplug_device_t;
 
 struct fplugd {
-	int check_status;
+	const char *config_file;
 	int foreground;
 	fplug_device_t fplug_device[MAX_FPLUG_DEVICE];
 	int device_count;
@@ -50,6 +50,7 @@ initialize_fplugd(
 	int i;
 
 	memset(fplugd, 0, sizeof(fplugd_t));
+	fplugd->config_file = DEFAULT_CONFIG_FILE;
 	for (i = 0; i < MAX_FPLUG_DEVICE; i++) {
 		fplugd->fplug_device[i].sd = -1;
 	}
@@ -65,22 +66,9 @@ parse_command_arguments(
 
 	while ((opt = getopt(argc, argv, "d:thiwF")) != -1) {
 		switch (opt) {
-		case 'd':
-			fplugd->fplug_device[fplugd->device_count].device_address = optarg;
-			fplugd->device_count += 1;
+		case 'c':
+			fplugd->config_file = optarg;
 			break;
-		case 't':
-			fplugd->check_status |= 0x01;
-                   	break;
-		case 'h':
-			fplugd->check_status |= 0x02;
-                   	break;
-		case 'i':
-			fplugd->check_status |= 0x04;
-                   	break;
-		case 'w':
-			fplugd->check_status |= 0x08;
-                   	break;
 		case 'F':
 			fplugd->foreground = 1;
 			break;
@@ -95,6 +83,11 @@ parse_command_arguments(
 	}
 
 	return 0;
+}
+
+
+static int
+load_config_file(fplugd_t *fplugd) {
 }
 
 static void

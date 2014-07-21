@@ -1,6 +1,10 @@
 #ifndef COMMON_DEFINE_H
 #define COMMON_DEFINE_H
 
+#ifndef DEFAULT_CONF_FILE
+#define DEFAULT_CONF_FILE "/etc/fplugstatd.conf"
+#endif
+
 #ifndef MAX_DEV_ADDRLEN
 #define MAX_DEV_ADDRLEN 32
 #endif
