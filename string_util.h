@@ -26,7 +26,7 @@ struct kv_split {
 typedef struct kv_split kv_split_t;
 
 struct parse_cmd {
-        char *args[NCARGS];
+        char *argv[NCARGS];
         int argc;
 };
 typedef struct parse_cmd parse_cmd_t;
@@ -45,18 +45,28 @@ int string_kv_split_b(
     char *str,
     const char *delim_str);
 
-int strtoint(
-    int *value,
-    const char *str,
-    int base);
-
-int strtouc(
-    unsigned char *value,
-    const char *str,
-    int base);
-
 int parse_cmd_b(
     parse_cmd_t *parse_cmd,
     char *cmd);
+
+int string_to_ui8(uint8_t *value, const char *str);
+
+int string_to_ui16(uint16_t *value, const char *str);
+
+int string_to_ui32(uint32_t *value, const char *str);
+
+int string_to_ui64(uint64_t *value, const char *str);
+
+int string_to_i8(int8_t *value, const char *str);
+
+int string_to_i16(int16_t *value, const char *str);
+
+int string_to_i32(int32_t *value, const char *str);
+
+int string_to_i64(int64_t *value, const char *str);
+
+int string_to_f(float *value, const char *str);
+
+int string_to_d(double *value, const char *str);
 
 #endif

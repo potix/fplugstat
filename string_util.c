@@ -2,11 +2,13 @@
 #include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <limits.h>
 #include <errno.h>
+#include <math.h>
 
-#include "common_macro.h"
+#include "common_macros.h"
 #include "string_util.h"
 
 #ifdef USE_BSD_STRLCPY
@@ -206,82 +208,6 @@ string_kv_split_b(
         return 0;
 }
 
-static int
-strtovalue(
-    long *value,
-    const char *str,
-    int base,
-    long min,
-    long max)
-{
-        long l;
-        char *ptr;
-
-	ASSERT(value != NULL);
-	ASSERT(str != NULL);
-	ASSERT(*str != '\0');
-        errno = 0;
-        l = strtol(str, &ptr, base);
-        if (*ptr !='\0' ||
-            (l == 0 && errno == EINVAL) ||
-            (l == LONG_MIN && errno == ERANGE) ||
-            (l == LONG_MAX && errno == ERANGE)) {
-                return 1;
-        }
-        if (l > max || l < min) {
-                errno = ERANGE;
-                return 1;
-        }
-        *value = l;
-
-        return 0;
-}
-
-int
-strtoint(
-    int *value,
-    const char *str,
-    int base)
-{
-        long l;
-
-        if (value == NULL ||
-            str == NULL ||
-            *str == '\0') {
-                errno = EINVAL;
-                return 1;
-        }
-	if (strtovalue(&l, str, base, INT_MIN, INT_MAX)) {
-		return 1;
-	}
-        *value = (int)l;
-
-        return 0;
-}
-
-int
-strtouc(
-    unsigned char *value,
-    const char *str,
-    int base)
-{
-        long l;
-
-        if (value == NULL ||
-            str == NULL ||
-            *str == '\0') {
-                errno = EINVAL;
-                return 1;
-        }
-	if (strtovalue(&l, str, base, 0, 255)) {
-		return 1;
-	}
-        *value = (unsigned char)l;
-
-        return 0;
-}
-
-	 
 int
 parse_cmd_b(
     parse_cmd_t *parse_cmd,
@@ -297,21 +223,21 @@ parse_cmd_b(
                 errno = EINVAL;
                 return 1;
         }
-	ptr = parse_cmd->args[0] = cmd;
-	parse_cmd->args[1] = NULL;
-	parse_cmd->arg_size = 1;
+	ptr = parse_cmd->argv[0] = cmd;
+	parse_cmd->argv[1] = NULL;
+	parse_cmd->argc = 1;
 	cmd_size = strlen(cmd) + 1;
 	while (*ptr != '\0') {
 		if (!(squote || dquote) && *ptr == ' ') {
 			*ptr = '\0';
 			if (*(ptr + 1) != '\0') {
-				if (parse_cmd->args[parse_cmd->arg_size - 1][0] == '\0') {
-					parse_cmd->arg_size--;
+				if (parse_cmd->argv[parse_cmd->argc - 1][0] == '\0') {
+					parse_cmd->argc--;
 				}
-				parse_cmd->args[parse_cmd->arg_size] = ptr + 1;
-				parse_cmd->args[parse_cmd->arg_size + 1] = NULL;
-				parse_cmd->arg_size++;
-				if (parse_cmd->arg_size >= NCARGS) {
+				parse_cmd->argv[parse_cmd->argc] = ptr + 1;
+				parse_cmd->argv[parse_cmd->argc + 1] = NULL;
+				parse_cmd->argc++;
+				if (parse_cmd->argc >= NCARGS) {
 					errno = ENOBUFS;
 					return 1;
 				}
@@ -321,7 +247,7 @@ parse_cmd_b(
 				*ptr = '\0';
 				dquote = 0;
 			} else {
-				parse_cmd->args[parse_cmd->arg_size - 1]++;
+				parse_cmd->argv[parse_cmd->argc - 1]++;
 				dquote = 1;
 			}
 		} else if (!dquote && *ptr == '\'') {
@@ -329,7 +255,7 @@ parse_cmd_b(
 				*ptr = '\0';
 				squote = 0;
 			} else {
-				parse_cmd->args[parse_cmd->arg_size - 1]++;
+				parse_cmd->argv[parse_cmd->argc - 1]++;
 				squote = 1;
 			}
 		} else if (*ptr == '\\' && (*(ptr + 1) == ' ' || *(ptr + 1) == '"' || *(ptr + 1) == '\'')) {
@@ -340,4 +266,300 @@ parse_cmd_b(
 
 	return 0;
 }
+
+
+#ifndef LLONG_MAX
+#define LLONG_MAX    LONG_MAX
+#endif
+
+#ifndef LLONG_MIN
+#define LLONG_MIN    LONG_MIN
+#endif
+
+#ifndef ULLONG_MAX
+#define ULLONG_MAX   ULONG_MAX
+#endif
+
+int
+string_to_ui8(uint8_t *value, const char *str)
+{
+        unsigned long ul;
+        char *ptr;
+
+        if (value == NULL ||
+            str == NULL ||
+            *str == '\0') {
+                errno = EINVAL;
+                return 1;
+        }
+        errno = 0;
+        ul = strtoul(str, &ptr, 0);
+        if (*ptr !='\0' ||
+            (ul == 0 && errno == EINVAL) ||
+            (ul == ULONG_MAX && errno == ERANGE)) {
+                *value = 0xff;
+                return 1;
+        }
+        if (ul > UINT8_MAX) {
+                errno = ERANGE;
+                *value = 0xff;
+                return 1;
+        }
+        *value = (uint8_t)ul;
+
+        return 0;
+}
+
+int
+string_to_ui16(uint16_t *value, const char *str)
+{
+        unsigned long ul;
+        char *ptr;
+
+        if (value == NULL ||
+            str == NULL ||
+            *str == '\0') {
+                errno = EINVAL;
+                return 1;
+        }
+        errno = 0;
+        ul = strtoul(str, &ptr, 0);
+        if (*ptr !='\0' ||
+            (ul == 0 && errno == EINVAL) ||
+            (ul == ULONG_MAX && errno == ERANGE)) {
+                return 1;
+        }
+        if (ul > UINT16_MAX) {
+                errno = ERANGE;
+                return 1;
+        }
+        *value = (uint16_t)ul;
+
+        return 0;
+}
+
+int
+string_to_ui32(uint32_t *value, const char *str)
+{
+        unsigned long ul;
+        char *ptr;
+
+        if (value == NULL ||
+            str == NULL ||
+            *str == '\0') {
+                errno = EINVAL;
+                return 1;
+        }
+        errno = 0;
+        ul = strtoul(str, &ptr, 0);
+        if (*ptr !='\0' ||
+            (ul == 0 && errno == EINVAL) ||
+            (ul == ULONG_MAX && errno == ERANGE)) {
+                return 1;
+        }
+        if (ul > UINT32_MAX) {
+                errno = ERANGE;
+                return 1;
+        }
+        *value = (uint32_t)ul;
+
+        return 0;
+}
+
+int
+string_to_ui64(uint64_t *value, const char *str)
+{
+        unsigned long long ull;
+        char *ptr;
+
+        if (value == NULL ||
+            str == NULL ||
+            *str == '\0') {
+                errno = EINVAL;
+                return 1;
+        }
+        errno = 0;
+        ull = strtoull(str, &ptr, 0);
+        if (*ptr !='\0' ||
+            (ull == 0 && errno == EINVAL) ||
+            (ull == ULLONG_MAX && errno == ERANGE)) {
+                return 1;
+        }
+        if (ull > UINT64_MAX) {
+                errno = ERANGE;
+                return 1;
+        }
+        *value = (uint64_t)ull;
+
+        return 0;
+}
+
+int
+string_to_i8(int8_t *value, const char *str)
+{
+        long l;
+        char *ptr;
+
+        if (value == NULL ||
+            str == NULL ||
+            *str == '\0') {
+                errno = EINVAL;
+                return 1;
+        }
+        errno = 0;
+        l = strtol(str, &ptr, 0);
+        if (*ptr !='\0' ||
+            (l == 0 && errno == EINVAL) ||
+            (l == LONG_MIN && errno == ERANGE) ||
+            (l == LONG_MAX && errno == ERANGE)) {
+                return 1;
+        }
+        if (l > INT8_MAX || l < INT8_MIN) {
+                errno = ERANGE;
+                return 1;
+        }
+        *value = (int8_t)l;
+
+        return 0;
+}
+
+int
+string_to_i16(int16_t *value, const char *str)
+{
+        long l;
+        char *ptr;
+
+        if (value == NULL ||
+            str == NULL ||
+            *str == '\0') {
+                errno = EINVAL;
+                return 1;
+        }
+        errno = 0;
+        l = strtol(str, &ptr, 0);
+        if (*ptr !='\0' ||
+            (l == 0 && errno == EINVAL) ||
+            (l == LONG_MIN && errno == ERANGE) ||
+            (l == LONG_MAX && errno == ERANGE)) {
+                return 1;
+        }
+        if (l > INT16_MAX || l < INT16_MIN) {
+                errno = ERANGE;
+                return 1;
+        }
+        *value = (int16_t)l;
+
+        return 0;
+}
+
+int
+string_to_i32(int32_t *value, const char *str)
+{
+        long l;
+        char *ptr;
+
+        if (value == NULL ||
+            str == NULL ||
+            *str == '\0') {
+                errno = EINVAL;
+                return 1;
+        }
+        errno = 0;
+        l = strtol(str, &ptr, 0);
+        if (*ptr !='\0' ||
+            (l == 0 && errno == EINVAL) ||
+            (l == LONG_MIN && errno == ERANGE) ||
+            (l == LONG_MAX && errno == ERANGE)) {
+                return 1;
+        }
+        if (l > INT32_MAX || l < INT32_MIN) {
+                errno = ERANGE;
+                return 1;
+        }
+        *value = (int32_t)l;
+
+        return 0;
+}
+
+int
+string_to_i64(int64_t *value, const char *str)
+{
+        long long ll;
+        char *ptr;
+
+        if (value == NULL ||
+            str == NULL ||
+            *str == '\0') {
+                errno = EINVAL;
+                return 1;
+        }
+        errno = 0;
+        ll = strtoll(str, &ptr, 0);
+        if (*ptr !='\0' ||
+            (ll == 0 && errno == EINVAL) ||
+            (ll == LLONG_MIN && errno == ERANGE) ||
+            (ll == LLONG_MAX && errno == ERANGE)) {
+                return 1;
+        }
+        if (ll > INT64_MAX || ll < INT64_MIN) {
+                errno = ERANGE;
+                return 1;
+        }
+        *value = (int64_t)ll;
+
+        return 0;
+}
+
+int
+string_to_f(float *value, const char *str)
+{
+        double d;
+        char *ptr;
+
+        if (value == NULL ||
+            str == NULL ||
+            *str == '\0') {
+                errno = EINVAL;
+                return 1;
+        }
+        errno = 0;
+        d = strtod(str, &ptr);
+        if (*ptr !='\0' ||
+            ((d == HUGE_VAL && errno == ERANGE) ||
+             (d == -HUGE_VAL && errno == ERANGE))) {
+                return 1;
+        }
+        *value = (float)d;
+
+        return 0;
+}
+
+int
+string_to_d(double *value, const char *str)
+{
+        double d;
+        char *ptr;
+
+        if (value == NULL ||
+            str == NULL ||
+            *str == '\0') {
+                errno = EINVAL;
+                return 1;
+        }
+        errno = 0;
+        d = strtod(str, &ptr);
+        if (*ptr !='\0' ||
+            ((d == HUGE_VAL && errno == ERANGE) ||
+             (d == -HUGE_VAL && errno == ERANGE))) {
+                return 1;
+        }
+        *value = d;
+
+        return 0;
+}
+
+
+
+
+
 
