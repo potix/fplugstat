@@ -1,15 +1,15 @@
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/queue.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netdb.h>
 
-#include "debug.h"
-#include "logger.h"
+#include "common_macros.h"
 #include "string_util.h"
 #include "config.h"
 
@@ -144,18 +144,16 @@ config_parse(
 		}
 		linecnt++;
 		if (string_lstrip_b(&line_ptr, line, " \t")) {
-			logging(
-			    LOG_LV_ERR,
-			    "failed in lstrip in %s (line = %d)",
-			    __func__,
+			fprintf(
+			    stderr,
+			    "failed in lstrip (line = %d)",
 			    linecnt);
 			return 1;
 		}
 		if (string_rstrip_b(line_ptr, " \t\r\n")) {
-			logging(
-			    LOG_LV_ERR,
-			    "failed in rstrip in %s (line = %d)",
-			    __func__,
+			fprintf(
+			    stderr,
+			    "failed in rstrip (line = %d)",
 			    linecnt);
 			return 1;
 		}
@@ -167,18 +165,16 @@ config_parse(
 			line_ptr[strlen(line_ptr) - 1] = '\0';
 			line_ptr++;
 			if (string_lstrip_b(&line_ptr, line_ptr, " \t")) {
-				logging(
-				    LOG_LV_ERR,
-				    "failed in lstrip in %s (line = %d)",
-				    __func__,
+				fprintf(
+				    stderr,
+				    "failed in lstrip (line = %d)",
 				    linecnt);
 				return 1;
 			}
 			if (string_rstrip_b(line_ptr, " \t\r\n")) {
-				logging(
-				    LOG_LV_ERR,
-				    "failed in rstrip in %s (line = %d)",
-				    __func__,
+				fprintf(
+				    stderr,
+				    "failed in rstrip (line = %d)",
 				    linecnt);
 				return 1;
 			}
@@ -186,10 +182,9 @@ config_parse(
 			if (!config_section) {
 				new_config_section = malloc(sizeof(config_section_t));
 				if (!new_config_section) {
-					logging(
-					    LOG_LV_ERR,
-					    "failed in allocate memory in %s (line = %d)",
-					    __func__,
+					fprintf(
+					    stderr,
+					    "failed in allocate memory (line = %d)",
 					    linecnt);
 					goto fail;
 				}
@@ -201,10 +196,9 @@ config_parse(
 				    next);
 				new_config_section->section = strdup(line_ptr);
 				if (new_config_section->section == NULL) {
-					logging(
-					    LOG_LV_ERR,
-					    "failed in allocate memory in %s (line = %d)",
-					    __func__,
+					fprintf(
+					    stderr,
+					    "failed in allocate memory (line = %d)",
 					    linecnt);
 					goto fail;
 				}
@@ -213,18 +207,16 @@ config_parse(
 			continue;
 		} 
 		if (string_kv_split_b(&kv, line_ptr, "=")) {
-			logging(
-			    LOG_LV_WARNING,
-			    "failed in split key and value in %s (line = %d)",
-			    __func__,
+			fprintf(
+			    stderr,
+			    "failed in split key and value (line = %d)",
 			    linecnt);
 			continue;
 		} else {
 			if (!config_section) {
-				logging(
-				    LOG_LV_WARNING,
-				    "not found section in %s (line = %d)",
-				    __func__,
+				fprintf(
+				    stderr,
+				    "not found section (line = %d)",
 				    linecnt);
 				continue;
 			}
@@ -235,10 +227,9 @@ config_parse(
 			if (!config_param) {
 				new_config_param = malloc(sizeof(config_param_t));
 				if (!new_config_param) {
-					logging(
-					    LOG_LV_ERR,
-					    "failed in allocate memory in %s (line = %d)",
-					    __func__,
+					fprintf(
+					    stderr,
+					    "failed in allocate memory (line = %d)",
 					    linecnt);
 					goto fail;
 				}
@@ -250,19 +241,17 @@ config_parse(
 				    next);
 				new_config_param->key = strdup(kv.key);
 				if (!new_config_param->key) {
-					logging(
-					    LOG_LV_ERR,
-					    "failed in allocate memory in %s (line = %d)",
-					    __func__,
+					fprintf(
+					    stderr,
+					    "failed in allocate memory (line = %d)",
 					    linecnt);
 					goto fail;
 				}
 				new_config_param->value = strdup(kv.value);
 				if (!new_config_param->value) {
-					logging(
-					    LOG_LV_ERR,
-					    "failed in allocate memory in %s (line = %d)",
-					    __func__,
+					fprintf(
+					    stderr,
+					    "failed in allocate memory (line = %d)",
 					    linecnt);
 					goto fail;
 				}
@@ -270,10 +259,9 @@ config_parse(
 			} else {
 				tmp_value = strdup(kv.value);
 				if (tmp_value == NULL) {
-					logging(
-					    LOG_LV_ERR,
-					    "failed in allocate memory in %s (line = %d)",
-					    __func__,
+					fprintf(
+					    stderr,
+					    "failed in allocate memory (line = %d)",
 					    linecnt);
 					goto fail;
 				}
@@ -359,12 +347,12 @@ config_load(
 	}
         fp = fopen(config->file_path, "r");
         if (fp == NULL) {
-		logging(LOG_LV_ERR, "failed open config file (%s)", config->file_path);
+		fprintf(stderr, "failed open config file (%s)", config->file_path);
                 error = 1;
 		goto final;
         }
 	if (config_parse(config, fp)) {
-		logging(LOG_LV_ERR, "parse error");
+		fprintf(stderr, "parse error");
                 error = 1;
 		goto final;
 	}
@@ -415,15 +403,15 @@ config_get_string(
 	value_len = strlen(v);
 	if (value_size  < value_len + 1) {
 		errno = ENOBUFS;
-		logging(LOG_LV_ERR, "not enough buffer in %s", __func__);
+		fprintf(stderr, "not enough buffer");
 		return 1;
 	}
 	if (max_str_len < value_len) {
 		errno = EINVAL;
-		logging(LOG_LV_ERR, "too long param");
+		fprintf(stderr, "too long param");
 		return 1;
 	}
-	STRLCPY(value, v, value_size);
+	strlcpy(value, v, value_size);
 
 	return 0;
 }
@@ -461,12 +449,12 @@ config_get_int8(
 		v = config_param->value;
 	}
 	if (string_to_i8(&tmp, v)) {
-		logging(LOG_LV_ERR, "failed in convert");
+		fprintf(stderr, "failed in convert");
 		errno = EINVAL;
 		return 1;
 	}
 	if (min_value > tmp || max_value < tmp) {
-		logging(LOG_LV_ERR, "out of range");
+		fprintf(stderr, "out of range");
 		errno = ERANGE;
 		return 1;
 	}
@@ -508,12 +496,12 @@ config_get_uint8(
 		v = config_param->value;
 	}
 	if (string_to_ui8(&tmp, v)) {
-		logging(LOG_LV_ERR, "failed in convert");
+		fprintf(stderr, "failed in convert");
 		errno = EINVAL;
 		return 1;
 	}
 	if (min_value > tmp || max_value < tmp) {
-		logging(LOG_LV_ERR, "out of range");
+		fprintf(stderr, "out of range");
 		errno = ERANGE;
 		return 1;
 	}
@@ -555,12 +543,12 @@ config_get_int16(
 		v = config_param->value;
 	}
 	if (string_to_i16(&tmp, v)) {
-		logging(LOG_LV_ERR, "failed in convert");
+		fprintf(stderr, "failed in convert");
 		errno = EINVAL;
 		return 1;
 	}
 	if (min_value > tmp || max_value < tmp) {
-		logging(LOG_LV_ERR, "out of range");
+		fprintf(stderr, "out of range");
 		errno = ERANGE;
 		return 1;
 	}
@@ -602,12 +590,12 @@ config_get_uint16(
 		v = config_param->value;
 	}
 	if (string_to_ui16(&tmp, v)) {
-		logging(LOG_LV_ERR, "failed in convert");
+		fprintf(stderr, "failed in convert");
 		errno = EINVAL;
 		return 1;
 	}
 	if (min_value > tmp || max_value < tmp) {
-		logging(LOG_LV_ERR, "out of range");
+		fprintf(stderr, "out of range");
 		errno = ERANGE;
 		return 1;
 	}
@@ -649,12 +637,12 @@ config_get_int32(
 		v = config_param->value;
 	}
 	if (string_to_i32(&tmp, v)) {
-		logging(LOG_LV_ERR, "failed in convert");
+		fprintf(stderr, "failed in convert");
 		errno = EINVAL;
 		return 1;
 	}
 	if (min_value > tmp || max_value < tmp) {
-		logging(LOG_LV_ERR, "out of range");
+		fprintf(stderr, "out of range");
 		errno = ERANGE;
 		return 1;
 	}
@@ -696,12 +684,12 @@ config_get_uint32(
 		v = config_param->value;
 	}
 	if (string_to_ui32(&tmp, v)) {
-		logging(LOG_LV_ERR, "failed in convert");
+		fprintf(stderr, "failed in convert");
 		errno = EINVAL;
 		return 1;
 	}
 	if (min_value > tmp || max_value < tmp) {
-		logging(LOG_LV_ERR, "out of range");
+		fprintf(stderr, "out of range");
 		errno = ERANGE;
 		return 1;
 	}
@@ -734,7 +722,7 @@ config_get_address(
 	}
 	memset(&addr_info_hints, 0, sizeof(addr_info_hints));
 	if (getaddrinfo(value, NULL, &addr_info_hints, &addr_info_res0)) {
-		logging(LOG_LV_ERR, "failed in get address information (%s)", value);
+		fprintf(stderr, "failed in get address information (%s)", value);
 		*value = '\0';
 		return 1;
 	} else {
@@ -745,7 +733,7 @@ config_get_address(
 		}
 		freeaddrinfo(addr_info_res0);
 		if (i == 0) {
-			logging(LOG_LV_ERR, "no address entry");
+			fprintf(stderr, "no address entry");
 			errno = ENOENT;
 			*value = '\0';
 			return 1;
@@ -781,7 +769,7 @@ config_get_port(
 	}
 	memset(&addr_info_hints, 0, sizeof(addr_info_hints));
 	if (getaddrinfo(NULL, value, &addr_info_hints, &addr_info_res0)) {
-		logging(LOG_LV_ERR, "failed in get port information");
+		fprintf(stderr, "failed in get port information");
 		*value = '\0';
 		return 1;
 	} else {
@@ -800,19 +788,19 @@ config_get_port(
 		}
 		freeaddrinfo(addr_info_res0);
 		if (i == 0) {
-			logging(LOG_LV_ERR, "no port entry");
+			fprintf(stderr, "no port entry");
 			errno = ENOENT;
 			*value = '\0';
 			return 1;
 		}
 		if (string_to_ui16(&tmp, sbuf)) {
-			logging(LOG_LV_ERR, "failed in convert");
+			fprintf(stderr, "failed in convert");
 			errno = EINVAL;
 			*value = '\0';
 			return 1;
 		}
 		if (1 > tmp || 65535 < tmp) {
-			logging(LOG_LV_ERR, "out of range");
+			fprintf(stderr, "out of range");
 			errno = ERANGE;
 			*value = '\0';
 			return 1;

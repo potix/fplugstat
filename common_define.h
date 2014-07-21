@@ -1,10 +1,6 @@
 #ifndef COMMON_DEFINE_H
 #define COMMON_DEFINE_H
 
-#ifndef DEFAULT_CONF_FILE
-#define DEFAULT_CONF_FILE "/etc/fplugstatd.conf"
-#endif
-
 #ifndef MAX_DEV_ADDRLEN
 #define MAX_DEV_ADDRLEN 32
 #endif
@@ -48,8 +44,6 @@
 #ifndef WRITE_TIMEOUT
 #define WRITE_TIMEOUT 60
 #endif
-
-#define MAX_FPLUG_DEVICE 7
 
 #define TYPE_DEV_NAME 1
 #define TYPE_DEV_ADDR 2

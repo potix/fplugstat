@@ -13,12 +13,16 @@
 
 typedef struct config config_t;
 
-/* configの生成 */
+/*
+ * configの生成
+ */
 int config_create(
     config_t **config,
     const char *file_path);
 
-/* configの削除 */
+/*
+ * configの削除
+ */
 int config_destroy(
     config_t *config);
 

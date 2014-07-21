@@ -1,292 +1,44 @@
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <signal.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
 #include <getopt.h>
 #include <event.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
 
-#define MAX_FPLUG_DEVICE 7
+#include "common_macros.h"
+#include "common_define.h"
+#include "fplug_device.h"
+#include "config.h"
 
-/* F-PLUG request */
-const char Temp[]={0x10, 0x81, 0x00, 0x00, 0x0e, 0xf0, 0x00, 0x00, 0x11, 0x00, 0x62, 0x01, 0xe0, 0x00};
-const char Humid[]={0x10, 0x81, 0x00, 0x00, 0x0e, 0xf0, 0x00, 0x00, 0x12, 0x00, 0x62, 0x01, 0xe0, 0x00};
-const char Illum[]={0x10, 0x81, 0x00, 0x00, 0x0e, 0xf0, 0x00, 0x00, 0x0D, 0x00, 0x62, 0x01, 0xe0, 0x00};
-const char RWatt[]={0x10, 0x81, 0x00, 0x00, 0x0e, 0xf0, 0x00, 0x00, 0x22, 0x00, 0x62, 0x01, 0xe2, 0x00};
+#ifndef DEFAULT_CONFIG_FILE
+//#define DEFAULT_CONFIG_FILE "/etc/fplugstatd.conf"
+#define DEFAULT_CONFIG_FILE "/conf/fplugstatd.conf"
+#endif
 
-struct fplug_device {
-	const char *device_address;
-        struct sockaddr_rc saddr;
-	int sd;  
-	int connected;
-};
-typedef struct fplug_device fplug_device_t;
-
-struct fplugd {
+struct fplugstatd {
 	const char *config_file;
 	int foreground;
-	fplug_device_t fplug_device[MAX_FPLUG_DEVICE];
-	int device_count;
-	int available_count;
         struct event_base *event_base;
+	fplug_devicies_t fplug_devicies;
+	config_t *config;
+
+
+/*
         sigset_t sigmask;
         struct event sigterm_event;
         struct event sigint_event;
-	struct timeval timer_tv;
-        struct event timer_event; // test
+*/
 };
-typedef struct fplugd fplugd_t;
+typedef struct fplugstatd fplugstatd_t;
 
-void
-initialize_fplugd(
-    fplugd_t *fplugd)
-{
-	int i;
-
-	memset(fplugd, 0, sizeof(fplugd_t));
-	fplugd->config_file = DEFAULT_CONFIG_FILE;
-	for (i = 0; i < MAX_FPLUG_DEVICE; i++) {
-		fplugd->fplug_device[i].sd = -1;
-	}
-}
-
-static int
-parse_command_arguments(
-    int argc,
-    char *argv[],
-    fplugd_t *fplugd)
-{
-	int opt;
-
-	while ((opt = getopt(argc, argv, "d:thiwF")) != -1) {
-		switch (opt) {
-		case 'c':
-			fplugd->config_file = optarg;
-			break;
-		case 'F':
-			fplugd->foreground = 1;
-			break;
-		default:
-			fprintf(stderr, "Usage: %s [[-d <device address>]...] [-thiw]\n", argv[0]);
-			return 1;
-		}
-	}
-	if (fplugd->check_status == 0) {
-		fprintf(stderr, "Usage: %s [[-d <device address>]...] [-thiw]\n", argv[0]);
-		return 1;
-	}
-
-	return 0;
-}
-
-
-static int
-load_config_file(fplugd_t *fplugd) {
-}
-
-static void
-terminate(
-    int fd,
-    short event,
-    void *args)
-{
-        fplugd_t *fplugd = args;
-
-        event_del(&fplugd->sigterm_event);
-        event_del(&fplugd->sigint_event);
-        event_del(&fplugd->timer_event);
-}
-
-static int
-connect_bluetooth(
-    fplug_device_t *fplug_device)
-{
-	fplug_device->sd = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-	fplug_device->saddr.rc_family = AF_BLUETOOTH;
-	fplug_device->saddr.rc_channel = (uint8_t)1;
-	str2ba(fplug_device->device_address, &fplug_device->saddr.rc_bdaddr);
-	if (connect(fplug_device->sd, (struct sockaddr *)&fplug_device->saddr, sizeof(fplug_device->saddr)) < 0) {
-		fprintf(stderr, "can not connect bluetooth (%s)\n", strerror(errno));
-		goto error;
-	}
-	fplug_device->connected = 1;
-
-	return 0;
-
-error:
-	if (fplug_device->sd != -1) {
-		close(fplug_device->sd);
-		fplug_device->sd = -1;
-	}
-
-	return 1;
-}
-
-static void
-close_bluetooth(
-    fplug_device_t *fplug_device)
-{
-	if (!fplug_device->connected) {
-		return;
-	}
-	fplug_device->connected = 0;
-	if (fplug_device->sd != -1) {
-		close(fplug_device->sd);
-		fplug_device->sd = -1;
-	}
-}
-
-static int
-do_request(int fd, const char *request, size_t request_size, unsigned char *response, size_t response_size)
-{
-	int wlen = 0, tmp_wlen;
-	int rlen = 0, tmp_rlen;
-
-	while (wlen != request_size) {
-		tmp_wlen = write(fd, &request[wlen], request_size - wlen);
-		if (tmp_wlen < 0) {
-			fprintf(stderr, "can not write request\n");
-			return 1;
-		}
-		wlen += tmp_wlen;
-	}
-	while (rlen != response_size) {
-		tmp_rlen = read(fd, &response[rlen], response_size - rlen);
-		if (rlen < 0) {
-			fprintf(stderr, "can not read request\n");
-			return 1;
-		}
-		rlen += tmp_rlen;
-	}
-
-	return 0;
-}
-
-static int
-get_statistics(
-    fplug_device_t *fplug_device,
-    int check_status)
-{
-	unsigned char buf[32];
-	size_t buf_size;
-	int i;
-	int fd = fplug_device->sd;
-
-	if (!fplug_device->connected) {
-		return 0;
-	}
-
-	if (check_status & 0x01) {
-		i = 0;
-		while (1) {
-			buf_size = 15;
-			if (do_request(fd, Temp, sizeof(Temp), buf, buf_size)) {
-				printf("Temp 0 failed in request\n");
-				return 1;
-			}
-			if (buf[5] != 0x00) {
-				read(fd, &buf[buf_size], sizeof(buf) - buf_size);
-			}
-			if (buf[5] == 0x11 && buf[10] == 0x72 && buf[13] == 2) {
-				break;
-			}
-			i++;
-			if (i > 10) {
-				printf("Temp 0 give up to get statistics\n");
-				return 1;
-			}
-		}
-		printf("Temp %.1lf success\n", (double)((int)buf[14] + ((int)buf[15] << 8)) / 10.0);
-	}
-	if (check_status & 0x02) {
-		i = 0;
-		while (1) {
-			buf_size = 15;
-			if (do_request(fd, Humid, sizeof(Humid), buf, buf_size)) {
-				printf("Humid 0 failed in request\n");
-				return 1;
-			}
-			if (buf[5] != 0x00) {
-				read(fd, &buf[buf_size], sizeof(buf) - buf_size);
-			}
-			if (buf[5] == 0x12 && buf[10] == 0x72 && buf[13] == 1) {
-				break;
-			}
-			i++;
-			if (i > 10) {
-				printf("Humid 0 give up to get statistics\n");
-				return 1;
-			}
-		}
-		printf("Humid %d success\n", (int)buf[14]);
-	}
-	if (check_status & 0x04) {
-		i = 0;
-		while (1) {
-			buf_size = 15;
-			if (do_request(fd, Illum, sizeof(Illum), buf, buf_size)) {
-				printf("Illum 0 failed in request\n");
-				return 1;
-			}
-			if (buf[5] != 0x00) {
-				read(fd, &buf[buf_size], sizeof(buf) - buf_size);
-			}
-			if (buf[5] == 0x0d && buf[10] == 0x72 && buf[13] == 2) {
-				break;
-			}
-			i++;
-			if (i > 10) {
-				printf("Illum 0 give up to get statistics\n");
-				return 1;
-			}
-		}
-                printf("Illum %d success\n", (int)buf[14] + ((int)buf[15] << 8));
-	}
-	if (check_status & 0x08) {
-		i = 0;
-		while (1) {
-			buf_size = 15;
-			if (do_request(fd, RWatt, sizeof(RWatt), buf, buf_size)) {
-				printf("Watt 0 failed in request\n");
-				return 1;
-			}
-			if (buf[5] != 0x00) {
-				read(fd, &buf[buf_size], sizeof(buf) - buf_size);
-			}
-                        if (buf[5] == 0x22 && buf[10] == 0x72 && buf[13] == 2) {
-				break;
-			}
-			i++;
-			if (i > 10) {
-				printf("Watt 0 give up to get statistics\n");
-				return 1;
-			}
-		}
-		printf("Watt %.1lf success\n", (double)((int)buf[14] + ((int)buf[15] << 8)) / 10);
-	}
-
-	return 0;
-}
-
-void
-statistics_main(
-    int fd,
-    short event,
-    void *args)
-{
-        fplugd_t *fplugd = args;
-	int i;
-
-	for (i = 0; i < fplugd->device_count; i++) {
-		get_statistics(&fplugd->fplug_device[i], fplugd->check_status);
-	}
-}
+static void initialize_fplugstatd(fplugstatd_t *fplugstatd);
+static int parse_command_arguments(int argc, char *argv[], fplugstatd_t *fplugstatd);
+static void usage(char *command);
 
 int
 main(
@@ -294,56 +46,145 @@ main(
     char *argv[])
 {
 	int error = 0;
-	fplugd_t fplugd;
-	int i;
+	fplugstatd_t fplugstatd;
+	//int i;
 
-	initialize_fplugd(&fplugd);
-	if (parse_command_arguments(argc, argv, &fplugd)) {
+	// 構造体初期化
+	initialize_fplugstatd(&fplugstatd);
+
+	// コマンドのパース
+	if (parse_command_arguments(argc, argv, &fplugstatd)) {
+		usage(argv[0]);
 		return 1;
 	}
-        if (!fplugd.foreground) {
+
+	// デーモン化
+        if (!fplugstatd.foreground) {
                 if (daemon(1,1)) {
                         fprintf(stderr, "faile in daemonaize");
                         return 1;
                 }
                 setsid();
         }
-	fplugd.event_base = event_init();
-	sigaddset(&fplugd.sigmask, SIGPIPE);
-	pthread_sigmask(SIG_SETMASK, &fplugd.sigmask, NULL);
-	signal_set(&fplugd.sigterm_event, SIGTERM, terminate, &fplugd);
-	event_base_set(fplugd.event_base, &fplugd.sigterm_event);
-	signal_add(&fplugd.sigterm_event, NULL);
-	signal_set(&fplugd.sigint_event, SIGINT, terminate, &fplugd);
-	event_base_set(fplugd.event_base, &fplugd.sigint_event);
-	signal_add(&fplugd.sigint_event, NULL);
-	for (i = 0; i < fplugd.device_count; i++) {
-		if (connect_bluetooth(&fplugd.fplug_device[i])) {
+
+	// コンフィグファイルの読み込み
+	if (config_create(&fplugstatd.config, fplugstatd.config_file)) {
+		fprintf(stderr, "faile in load config");
+		return 1;
+	}
+
+
+	
+
+
+/*
+	sigaddset(&fplugstatd.sigmask, SIGPIPE);
+	pthread_sigmask(SIG_SETMASK, &fplugstatd.sigmask, NULL);
+	signal_set(&fplugstatd.sigterm_event, SIGTERM, terminate, &fplugstatd);
+	event_base_set(fplugstatd.event_base, &fplugstatd.sigterm_event);
+	signal_add(&fplugstatd.sigterm_event, NULL);
+	signal_set(&fplugstatd.sigint_event, SIGINT, terminate, &fplugstatd);
+	event_base_set(fplugstatd.event_base, &fplugstatd.sigint_event);
+	signal_add(&fplugstatd.sigint_event, NULL);
+	for (i = 0; i < fplugstatd.device_count; i++) {
+		if (connect_bluetooth(&fplugstatd.fplug_device[i])) {
 			continue;
 		}
-		fplugd.available_count += 1;
+		fplugstatd.available_count += 1;
 	}
-	if (fplugd.available_count == 0) {
+	if (fplugstatd.available_count == 0) {
 		fprintf(stderr, "no there available device.");
 		error = 1;
 		goto last;
 	}
-	fplugd.timer_tv.tv_sec = 5;
-	fplugd.timer_tv.tv_usec = 0;
-	//evtimer_set(&fplugd.timer_event, statistics_main, &fplugd);
-	event_set(&fplugd.timer_event, -1, EV_PERSIST, statistics_main, &fplugd);
-	event_base_set(fplugd.event_base, &fplugd.timer_event);
-	evtimer_add(&fplugd.timer_event, &fplugd.timer_tv);
-	if (event_base_dispatch(fplugd.event_base) == -1) {
+	fplugstatd.timer_tv.tv_sec = 5;
+	fplugstatd.timer_tv.tv_usec = 0;
+	//evtimer_set(&fplugstatd.timer_event, statistics_main, &fplugstatd);
+	event_set(&fplugstatd.timer_event, -1, EV_PERSIST, statistics_main, &fplugstatd);
+	event_base_set(fplugstatd.event_base, &fplugstatd.timer_event);
+	evtimer_add(&fplugstatd.timer_event, &fplugstatd.timer_tv);
+	if (event_base_dispatch(fplugstatd.event_base) == -1) {
 		fprintf(stderr, "failed in event base dispatch");
 		error = 1;
 		goto last;
 	}
 last:
-	for (i = 0; i < fplugd.device_count; i++) {
-		close_bluetooth(&fplugd.fplug_device[i]);
+	for (i = 0; i < fplugstatd.device_count; i++) {
+		close_bluetooth(&fplugstatd.fplug_device[i]);
+	}
+*/
+
+	if (config_destroy(fplugstatd.config)) {
+		// XXX logging
 	}
 
 	return error;
 }
 
+static void
+initialize_fplugstatd(
+    fplugstatd_t *fplugstatd)
+{
+	ASSERT(fplugstatd != NULL);
+
+	memset(fplugstatd, 0, sizeof(fplugstatd_t));
+	fplugstatd->config_file = DEFAULT_CONFIG_FILE;
+	fplugstatd->event_base = event_init();
+	initialize_fplug_devicies(&fplugstatd->fplug_devicies);
+}
+
+static int
+parse_command_arguments(
+    int argc,
+    char *argv[],
+    fplugstatd_t *fplugstatd)
+{
+	int opt;
+
+	ASSERT(argc != 0);
+	ASSERT(argv != NULL);
+	ASSERT(fplugstatd != NULL);
+
+	while ((opt = getopt(argc, argv, "c:F")) != -1) {
+		switch (opt) {
+		case 'c':
+			fplugstatd->config_file = optarg;
+			break;
+		case 'F':
+			fplugstatd->foreground = 1;
+			break;
+		default:
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static void
+usage(
+    char *command)
+{
+	ASSERT(command != NULL);
+
+	fprintf(
+	    stderr,
+	    "Usage: %s [-c <config_file_path] [-F]\n",
+	    command);
+}
+
+
+/*
+static void
+terminate(
+    int fd,
+    short event,
+    void *args)
+{
+	 fplugstatd *fplugstatd = args;
+
+	event_del(&fplugstatd->sigterm_event);
+	event_del(&fplugstatd->sigint_event);
+	event_del(&fplugstatd->timer_event);
+}
+*/
