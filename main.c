@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <getopt.h>
-#include <event.h>
+#include <event2/event.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
 
@@ -26,19 +26,16 @@ struct fplugstatd {
         struct event_base *event_base;
 	fplug_devicies_t fplug_devicies;
 	config_t *config;
-
-
-/*
-        sigset_t sigmask;
-        struct event sigterm_event;
-        struct event sigint_event;
-*/
+        sigset_t sig_block_mask;
+        struct event *sig_term_event;
+        struct event *sig_int_event;
 };
 typedef struct fplugstatd fplugstatd_t;
 
 static void initialize_fplugstatd(fplugstatd_t *fplugstatd);
 static int parse_command_arguments(int argc, char *argv[], fplugstatd_t *fplugstatd);
 static void usage(char *command);
+static void terminate(int fd, short event, void *args);
 
 int
 main(
@@ -74,9 +71,29 @@ main(
 	}
 
 
+	// XXXXX log open XXXXX
+	// XXXXX log open XXXXX
+	// XXXXX log open XXXXX
+
+
+	// シグナルマスク
+	sigemptyset(&fplugstatd.sig_block_mask);
+	pthread_sigmask(SIG_BLOCK, &fplugstatd.sig_block_mask, NULL);
+
+	// int, termシグナル受信時のの処理
+        if ((fplugstatd.sig_term_event = evsignal_new(fplugstatd.event_base, SIGTERM, terminate, &fplugstatd)) == NULL) {
+		// XXXX logging
+	};
+	evsignal_add(fplugstatd.sig_term_event, NULL);
+
+	if ((fplugstatd.sig_int_event = evsignal_new(fplugstatd.event_base, SIGINT, terminate, &fplugstatd)) == NULL) {
+		// XXXX logging
+	}
+        evsignal_add(fplugstatd.sig_int_event, NULL);
+
+
+
 	
-
-
 /*
 	sigaddset(&fplugstatd.sigmask, SIGPIPE);
 	pthread_sigmask(SIG_SETMASK, &fplugstatd.sigmask, NULL);
@@ -114,8 +131,21 @@ last:
 	}
 */
 
-	if (config_destroy(fplugstatd.config)) {
-		// XXX logging
+
+	// イベントループ
+	event_base_dispatch(fplugstatd.event_base);
+
+	// 解放処理
+	if (fplugstatd.sig_term_event) {
+		event_free(fplugstatd.sig_term_event);
+	}
+	if (fplugstatd.sig_int_event) {
+		event_free(fplugstatd.sig_int_event);
+	}
+	if (fplugstatd.config) {
+		if (config_destroy(fplugstatd.config)) {
+			// XXX logging
+		}
 	}
 
 	return error;
@@ -129,7 +159,7 @@ initialize_fplugstatd(
 
 	memset(fplugstatd, 0, sizeof(fplugstatd_t));
 	fplugstatd->config_file = DEFAULT_CONFIG_FILE;
-	fplugstatd->event_base = event_init();
+	fplugstatd->event_base = event_base_new();
 	initialize_fplug_devicies(&fplugstatd->fplug_devicies);
 }
 
@@ -174,17 +204,14 @@ usage(
 }
 
 
-/*
 static void
 terminate(
     int fd,
     short event,
     void *args)
 {
-	 fplugstatd *fplugstatd = args;
+	fplugstatd_t *fplugstatd = args;
 
-	event_del(&fplugstatd->sigterm_event);
-	event_del(&fplugstatd->sigint_event);
-	event_del(&fplugstatd->timer_event);
+	evsignal_del(fplugstatd->sig_term_event);
+	evsignal_del(fplugstatd->sig_int_event);
 }
-*/
