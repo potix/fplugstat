@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <syslog.h>
 #include <event2/event.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
@@ -14,6 +15,7 @@
 #include "common_define.h"
 #include "fplug_device.h"
 #include "config.h"
+#include "logger.h"
 
 #ifndef DEFAULT_CONFIG_FILE
 //#define DEFAULT_CONFIG_FILE "/etc/fplugstatd.conf"
@@ -44,7 +46,8 @@ main(
 {
 	int error = 0;
 	fplugstatd_t fplugstatd;
-	//int i;
+	char facility[LOG_FACILITY_LEN];
+	char serverity[LOG_SERVERITY_LEN];
 
 	// 構造体初期化
 	initialize_fplugstatd(&fplugstatd);
@@ -64,17 +67,37 @@ main(
                 setsid();
         }
 
-	// コンフィグファイルの読み込み
+	// コンフィグコンテキストの生成
 	if (config_create(&fplugstatd.config, fplugstatd.config_file)) {
+		fprintf(stderr, "faile in create config");
+		return 1;
+	}
+
+	// コンフィグの読み込み
+	if (config_load(fplugstatd.config)) {
 		fprintf(stderr, "faile in load config");
 		return 1;
 	}
 
+	if (config_get_string(fplugstatd.config, facility, sizeof(facility), "global", "syslogFacility",  "daemon", LOG_FACILITY_LEN - 1)) {
+		fprintf(stderr, "faile in get facility from config");
+		return 1;
+	}
 
-	// XXXXX log open XXXXX
-	// XXXXX log open XXXXX
-	// XXXXX log open XXXXX
+	if (config_get_string(fplugstatd.config, serverity, sizeof(serverity), "global", "syslogSeverity",  "warning", LOG_SERVERITY_LEN - 1)) {
+		fprintf(stderr, "faile in get serverity from config");
+		return 1;
+	}
 
+	if (logger_open(argv[0], LOG_PID, facility)) {
+		fprintf(stderr, "faile in open logger");
+		return 1;
+	}
+
+	if (logger_filter(serverity)) {
+		fprintf(stderr, "faile in set logger filter");
+		return 1;
+	}
 
 	// シグナルマスク
 	sigemptyset(&fplugstatd.sig_block_mask);
@@ -92,7 +115,8 @@ main(
         evsignal_add(fplugstatd.sig_int_event, NULL);
 
 
-
+	
+	
 	
 /*
 	sigaddset(&fplugstatd.sigmask, SIGPIPE);
@@ -114,12 +138,20 @@ main(
 		error = 1;
 		goto last;
 	}
+
+
+	
+	
+
 	fplugstatd.timer_tv.tv_sec = 5;
 	fplugstatd.timer_tv.tv_usec = 0;
 	//evtimer_set(&fplugstatd.timer_event, statistics_main, &fplugstatd);
 	event_set(&fplugstatd.timer_event, -1, EV_PERSIST, statistics_main, &fplugstatd);
 	event_base_set(fplugstatd.event_base, &fplugstatd.timer_event);
 	evtimer_add(&fplugstatd.timer_event, &fplugstatd.timer_tv);
+
+
+
 	if (event_base_dispatch(fplugstatd.event_base) == -1) {
 		fprintf(stderr, "failed in event base dispatch");
 		error = 1;
@@ -129,11 +161,16 @@ last:
 	for (i = 0; i < fplugstatd.device_count; i++) {
 		close_bluetooth(&fplugstatd.fplug_device[i]);
 	}
+
+
+
 */
 
 
 	// イベントループ
 	event_base_dispatch(fplugstatd.event_base);
+
+	logger_close();
 
 	// 解放処理
 	if (fplugstatd.sig_term_event) {
@@ -147,7 +184,6 @@ last:
 			// XXX logging
 		}
 	}
-
 	return error;
 }
 
