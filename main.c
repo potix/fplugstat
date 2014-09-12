@@ -105,12 +105,14 @@ main(
 
 	// int, termシグナル受信時のの処理
         if ((fplugstatd.sig_term_event = evsignal_new(fplugstatd.event_base, SIGTERM, terminate, &fplugstatd)) == NULL) {
-		// XXXX logging
+		LOG(LOG_ERR, "failed in create event of SIGTERM");
+		return 1;
 	};
 	evsignal_add(fplugstatd.sig_term_event, NULL);
 
 	if ((fplugstatd.sig_int_event = evsignal_new(fplugstatd.event_base, SIGINT, terminate, &fplugstatd)) == NULL) {
-		// XXXX logging
+		LOG(LOG_ERR, "failed in create event of SIGINT");
+		return 1;
 	}
         evsignal_add(fplugstatd.sig_int_event, NULL);
 
