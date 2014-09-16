@@ -45,6 +45,10 @@
 #define WRITE_TIMEOUT 60
 #endif
 
+#ifndef FPLUGSTAT_PATH
+#define FPLUGSTAT_PATH "/etc/fplugstat"
+#endif
+
 #define TYPE_DEV_NAME 1
 #define TYPE_DEV_ADDR 2
 

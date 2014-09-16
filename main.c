@@ -16,10 +16,10 @@
 #include "fplug_device.h"
 #include "config.h"
 #include "logger.h"
+#include "http.h"
 
 #ifndef DEFAULT_CONFIG_FILE
-//#define DEFAULT_CONFIG_FILE "/etc/fplugstatd.conf"
-#define DEFAULT_CONFIG_FILE "/conf/fplugstatd.conf"
+#define DEFAULT_CONFIG_FILE FPLUGSTAT_PATH "/fplugstatd.conf"
 #endif
 
 struct fplugstatd {
@@ -31,6 +31,7 @@ struct fplugstatd {
         sigset_t sig_block_mask;
         struct event *sig_term_event;
         struct event *sig_int_event;
+	http_server_t *http_server;
 };
 typedef struct fplugstatd fplugstatd_t;
 
@@ -79,12 +80,12 @@ main(
 		return 1;
 	}
 
-	if (config_get_string(fplugstatd.config, facility, sizeof(facility), "global", "syslogFacility",  "daemon", LOG_FACILITY_LEN - 1)) {
+	if (config_get_string(fplugstatd.config, facility, sizeof(facility), "global", "syslogFacility",  "daemon", sizeof(facility) - 1)) {
 		fprintf(stderr, "faile in get facility from config");
 		return 1;
 	}
 
-	if (config_get_string(fplugstatd.config, serverity, sizeof(serverity), "global", "syslogSeverity",  "warning", LOG_SERVERITY_LEN - 1)) {
+	if (config_get_string(fplugstatd.config, serverity, sizeof(serverity), "global", "syslogSeverity",  "warning", sizeof(serverity) - 1)) {
 		fprintf(stderr, "faile in get serverity from config");
 		return 1;
 	}
@@ -96,6 +97,11 @@ main(
 
 	if (logger_filter(serverity)) {
 		fprintf(stderr, "faile in set logger filter");
+		return 1;
+	}
+
+	if (http_server_create(&fplugstatd.http_server, fplugstatd,event_base, fplugstatd.config)) {
+		LOG(LOG_ERR, "failed in create http server");
 		return 1;
 	}
 
@@ -117,8 +123,9 @@ main(
         evsignal_add(fplugstatd.sig_int_event, NULL);
 
 
-	
-	
+	/* XXX bluetooth initialize) */
+
+
 	
 /*
 	sigaddset(&fplugstatd.sigmask, SIGPIPE);
@@ -168,12 +175,11 @@ last:
 
 */
 
-
 	// イベントループ
+	LOG(LOG_DEBUG, "start event loop");
 	event_base_dispatch(fplugstatd.event_base);
-
-	logger_close();
-
+	LOG(LOG_DEBUG, "finish event loop");
+	
 	// 解放処理
 	if (fplugstatd.sig_term_event) {
 		event_free(fplugstatd.sig_term_event);
@@ -181,11 +187,17 @@ last:
 	if (fplugstatd.sig_int_event) {
 		event_free(fplugstatd.sig_int_event);
 	}
-	if (fplugstatd.config) {
-		if (config_destroy(fplugstatd.config)) {
-			// XXX logging
-		}
+	if (fplugstatd.http_server) {
+		http_server_free(fplugstatd.http_server)
 	}
+	if (fplugstatd.config) {
+		config_destroy(fplugstatd.config);
+	}
+        if (fplugstatd.event_base) {
+                event_base_free(fplugstatd.event_base);
+        }
+	logger_close();
+
 	return error;
 }
 
