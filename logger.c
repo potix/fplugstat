@@ -103,7 +103,7 @@ logger_log(const char *func, int line, int serverity, const char *format, ...)
 	snprintf(new_format, sizeof(new_format), "%s:%d %s", func, line, format);
 	va_list list;
 	va_start(list, format);
-	syslog(serverity, new_format, list);
+	vsyslog(serverity, new_format, list);
 	va_end(list);
 
 	return 0;

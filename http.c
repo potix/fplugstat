@@ -54,9 +54,7 @@ struct http_server {
 	char address[NI_MAXHOST];
 	unsigned short port;
 	char root_url_path[URL_PATH_MAX];
-	int set_root_cb;
         char api_url_path[URL_PATH_MAX];
-	int set_api_cb;
         char resource_path[URL_PATH_MAX];
         //fplug_devicies_t *fplug_devicies;
 };
@@ -67,12 +65,6 @@ struct content_type_map {
 };
 
 static void default_cb(
-    struct evhttp_request *req,
-    void *arg);
-static void root_cb(
-    struct evhttp_request *req,
-    void *arg);
-static void api_cb(
     struct evhttp_request *req,
     void *arg);
 
@@ -146,7 +138,7 @@ http_server_create(
                 LOG(LOG_ERR, "faile in get resource path from config");
                 goto fail;
         }
-	evhttp_set_gencb(evhttp, default_cb, NULL);
+	evhttp_set_gencb(evhttp, default_cb, new);
 	new->evhttp = evhttp;
 	new->localhost_only = localhost_only;
 	strlcpy(new->address, address, sizeof(new->address));
@@ -174,23 +166,11 @@ http_server_start(
 {
 	struct evhttp_bound_socket *bound_socket = NULL;
 	struct evhttp_bound_socket *local_bound_socket = NULL;
-	int set_root_cb = 0;
-	int set_api_cb = 0;
 
 	if (http_server == NULL) {
 		errno = EINVAL;
 		return 1;
 	}
-	if (evhttp_set_cb(http_server->evhttp, http_server->root_url_path, root_cb, http_server)) {
-                LOG(LOG_ERR, "faile in set root callback");
-                goto fail;
-	}
-	set_root_cb = 1;
-	if (evhttp_set_cb(http_server->evhttp, http_server->api_url_path, api_cb, http_server)) {
-                LOG(LOG_ERR, "faile in set api callback");
-		goto fail;
-	}
-	set_api_cb = 1;
 	if (!http_server->localhost_only) {
 		if ((bound_socket = evhttp_bind_socket_with_handle(http_server->evhttp, http_server->address, http_server->port)) == NULL) {
        	        	LOG(LOG_ERR, "faile in bind socket");
@@ -203,18 +183,10 @@ http_server_start(
 	}
 	http_server->bound_socket = bound_socket;
 	http_server->local_bound_socket = local_bound_socket;
-	http_server->set_root_cb = set_root_cb;
-	http_server->set_api_cb = set_api_cb;
 
 	return 0;
 
 fail:
-	if (set_api_cb) {
-		evhttp_del_cb(http_server->evhttp, http_server->api_url_path);
-	}
-	if (set_root_cb) {
-		evhttp_del_cb(http_server->evhttp, http_server->root_url_path);
-	}
 	if (bound_socket) {
 		evhttp_del_accept_socket(http_server->evhttp, bound_socket);
 	}
@@ -232,12 +204,6 @@ http_server_stop(
 	if (http_server == NULL) {
 		errno = EINVAL;
 		return 1;
-	}
-	if (http_server->set_api_cb) {
-		evhttp_del_cb(http_server->evhttp, http_server->api_url_path);
-	}
-	if (http_server->set_root_cb) {
-		evhttp_del_cb(http_server->evhttp, http_server->root_url_path);
 	}
 	if (http_server->bound_socket) {
 		evhttp_del_accept_socket(http_server->evhttp, http_server->bound_socket);
@@ -265,17 +231,8 @@ http_server_destroy(
 	return 0;
 }
 
-
 static void
 default_cb(
-    struct evhttp_request *req,
-    void *arg)
-{
-	evhttp_send_error(req, HTTP_NOTFOUND, "Not Found");
-}
-
-static void
-root_cb(
     struct evhttp_request *req,
     void *arg)
 {
@@ -298,11 +255,14 @@ root_cb(
 	const char *reason = NULL;
 
 	ASSERT(arg != NULL);
+
+        LOG(LOG_DEBUG, "default callback");
 	uri = evhttp_request_get_uri(req);
 	if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
 		error = 1;
 		status_code = HTTP_BADMETHOD;
-		reason = "Not support method";
+		reason = "unsupport method";
+                LOG(LOG_DEBUG, reason);
 		goto last; 
 	}
 	decoded = evhttp_uri_parse(uri);
@@ -310,22 +270,28 @@ root_cb(
 		error = 1;
 		status_code = HTTP_BADREQUEST;
 		reason = "could not parse uri";
+                LOG(LOG_DEBUG, reason);
 		goto last; 
 	}
 	path = evhttp_uri_get_path(decoded);
-	if (!path) path = "/";
-
+	if (path == NULL || evutil_ascii_strcasecmp(path, "/") == 0) {
+		path = "/index.html";
+	}
+        LOG(LOG_DEBUG, "path = %s", path);
 	decoded_path = evhttp_uridecode(path, 0, NULL);
 	if (decoded_path == NULL) {
 		error = 1;
 		status_code = HTTP_BADREQUEST;
 		reason = "could not decode url";
+                LOG(LOG_DEBUG, reason);
 		goto last; 
 	}
+        LOG(LOG_DEBUG, "decoded path = %s", decoded_path);
 	if (strstr(decoded_path, "..")) {
 		error = 1;
 		status_code = HTTP_BADREQUEST;
 		reason = "unsupport path format";
+                LOG(LOG_DEBUG, reason);
 		goto last;
 	}
 
@@ -334,6 +300,7 @@ root_cb(
 		error = 1;
 		status_code = HTTP_INTERNAL;
 		reason = "could not allocate memory of resource path";
+                LOG(LOG_DEBUG, reason);
 		goto last;
 	}
 	evutil_snprintf(file_path, len, "%s/%s", http_server->resource_path, decoded_path);
@@ -342,13 +309,16 @@ root_cb(
 		error = 1;
 		status_code = HTTP_NOTFOUND;
 		reason = "Not found";
+                LOG(LOG_DEBUG, "failed in stat");
 		goto last;
 	}
+        LOG(LOG_DEBUG, "file path = %s", path);
 
 	if (S_ISDIR(st.st_mode)) {
 		error = 1;
 		status_code = HTTP_NOTFOUND;
 		reason = "Not found";
+                LOG(LOG_DEBUG, "file path is directory");
 		goto last;
 	}
 
@@ -356,6 +326,7 @@ root_cb(
 		error = 1;
 		status_code = HTTP_INTERNAL;
 		reason = "could not allocate memory of response buffer";
+                LOG(LOG_DEBUG, reason);
 		goto last;
 	}
 	
@@ -364,6 +335,7 @@ root_cb(
 		error = 1;
 		status_code = HTTP_NOTFOUND;
 		reason = "Not found";
+                LOG(LOG_DEBUG, "invalid extension");
 		goto last;
 	}
 	for (i = 0; i < sizeof(content_types)/sizeof(content_type_map_t); i++) {
@@ -375,18 +347,21 @@ root_cb(
 		error = 1;
 		status_code = HTTP_NOTFOUND;
 		reason = "Not found";
+                LOG(LOG_DEBUG, "content type mismatch");
 		goto last;
 	}
 	if ((fd = open(file_path, O_RDONLY)) < 0) {
 		error = 1;
 		status_code = HTTP_INTERNAL;
 		reason = "could not open resource";
+                LOG(LOG_DEBUG, reason);
 		goto last;
 	}
 	if (fstat(fd, &st)<0) {
 		error = 1;
 		status_code = HTTP_NOTFOUND;
 		reason = "Not found";
+                LOG(LOG_DEBUG, "failed in fstat");
 		goto last;
 	}
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", content_type);
@@ -414,11 +389,4 @@ last:
 	}
 
 	return;
-}
-
-static void
-api_cb(
-    struct evhttp_request *req,
-    void *arg)
-{
 }

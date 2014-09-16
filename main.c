@@ -104,6 +104,8 @@ main(
 		return 1;
 	}
 
+	/* XXX bluetooth initialize) */
+
 	// シグナルマスク
 	sigemptyset(&fplugstatd.sig_block_mask);
 	pthread_sigmask(SIG_BLOCK, &fplugstatd.sig_block_mask, NULL);
@@ -121,8 +123,11 @@ main(
 	}
         evsignal_add(fplugstatd.sig_int_event, NULL);
 
-
-	/* XXX bluetooth initialize) */
+	/* http server 開始 */
+	if (http_server_start(fplugstatd.http_server)) {
+		LOG(LOG_ERR, "failed in start http server");
+		return 1;
+	}
 
 
 	
@@ -261,6 +266,9 @@ terminate(
 {
 	fplugstatd_t *fplugstatd = args;
 
+	ASSERT(fplugstatd != NULL);
+
+	http_server_stop(fplugstatd->http_server);
 	evsignal_del(fplugstatd->sig_term_event);
 	evsignal_del(fplugstatd->sig_int_event);
 }
