@@ -15,6 +15,7 @@
 #include "common_define.h"
 #include "config.h"
 #include "logger.h"
+#include "string_util.h"
 #include "http.h"
 
 #ifndef URL_PATH_MAX
@@ -34,25 +35,59 @@
 #endif
 
 #ifndef DEFAULT_HTTP_ADDRESS
-#define DEFAULT_HTTP_ADDRESS "127.0.0.1"
+#define DEFAULT_HTTP_ADDRESS "0.0.0.0"
 #endif
 
 #ifndef DEFAULT_HTTP_PORT
-#define DEFAULT_HTTP_PORT 80
+#define DEFAULT_HTTP_PORT "80"
+#endif
+
+#ifndef LOCAL_HTTP_ADDRESS
+#define LOCAL_HTTP_ADDRESS "127.0.0.1"
 #endif
 
 struct http_server {
 	struct evhttp *evhttp;
 	struct evhttp_bound_socket *bound_socket;
+	struct evhttp_bound_socket *local_bound_socket;
+	int localhost_only;
 	char address[NI_MAXHOST];
 	unsigned short port;
 	char root_url_path[URL_PATH_MAX];
-	int set_root_cb = 0;
+	int set_root_cb;
         char api_url_path[URL_PATH_MAX];
-	int set_api_cb = 0;
+	int set_api_cb;
         char resource_path[URL_PATH_MAX];
         //fplug_devicies_t *fplug_devicies;
 };
+
+struct content_type_map {
+	const char *extension;
+	const char *content_type;
+};
+
+static void default_cb(
+    struct evhttp_request *req,
+    void *arg);
+static void root_cb(
+    struct evhttp_request *req,
+    void *arg);
+static void api_cb(
+    struct evhttp_request *req,
+    void *arg);
+
+struct content_type_map content_types[] = {
+	{ ".html", "text/html"       },
+	{ ".htm",  "text/htm"        },
+	{ ".js",   "text/javascript" },
+	{ ".css",  "text/css"        },
+	{ ".png",  "image/png"       },
+	{ ".gif",  "image/gif"       },
+	{ ".jpg",  "image/jpeg"      },
+	{ ".jpeg", "image/jpeg"      },
+	{ ".txt",  "text/plain"      }
+};
+typedef struct content_type_map content_type_map_t;
 
 int
 http_server_create(
@@ -62,7 +97,7 @@ http_server_create(
 {
 	http_server_t *new = NULL;
 	struct evhttp *evhttp = NULL;
-	struct evhttp_bound_socket *bound_socket = NULL;
+	int localhost_only = 0;
 	char address[NI_MAXHOST];
 	unsigned short port;
 	char root_url_path[URL_PATH_MAX];
@@ -81,6 +116,11 @@ http_server_create(
 	if ((evhttp = evhttp_new(event_base)) == NULL) {
 		LOG(LOG_ERR, "failed in create evhttp");
 		goto fail;
+	}
+	if (config_get_bool(config, &localhost_only, "controller", "localhostOnly", "true")) {
+                LOG(LOG_ERR, "faile in get localhost only flag from config");
+                goto fail;
+
 	}
         if (config_get_string(config, address, sizeof(address),
 	    "controller", "httpAddress", DEFAULT_HTTP_ADDRESS, sizeof(address) - 1)) {
@@ -106,8 +146,9 @@ http_server_create(
                 LOG(LOG_ERR, "faile in get resource path from config");
                 goto fail;
         }
-	evhttp_set_gencb(http, default_cb, NULL);
-	new->evhttp = evhttp:
+	evhttp_set_gencb(evhttp, default_cb, NULL);
+	new->evhttp = evhttp;
+	new->localhost_only = localhost_only;
 	strlcpy(new->address, address, sizeof(new->address));
 	new->port = port;
 	strlcpy(new->root_url_path, root_url_path, sizeof(new->root_url_path));
@@ -132,6 +173,7 @@ http_server_start(
     http_server_t *http_server)
 {
 	struct evhttp_bound_socket *bound_socket = NULL;
+	struct evhttp_bound_socket *local_bound_socket = NULL;
 	int set_root_cb = 0;
 	int set_api_cb = 0;
 
@@ -139,35 +181,45 @@ http_server_start(
 		errno = EINVAL;
 		return 1;
 	}
-	if (evhttp_set_cb(http, root_url_path, root_cb, new)) {
+	if (evhttp_set_cb(http_server->evhttp, http_server->root_url_path, root_cb, http_server)) {
                 LOG(LOG_ERR, "faile in set root callback");
                 goto fail;
 	}
 	set_root_cb = 1;
-	if (evhttp_set_cb(http, api_url_path, api_cb, new)) {
+	if (evhttp_set_cb(http_server->evhttp, http_server->api_url_path, api_cb, http_server)) {
                 LOG(LOG_ERR, "faile in set api callback");
-		goto fail:
+		goto fail;
 	}
 	set_api_cb = 1;
-	if ((bound_socket = evhttp_bind_socket_with_handle(http_server->evhttp, http_server->address, http_server->port)) == NULL) {
-                LOG(LOG_ERR, "faile in bind socket");
-		goto fail:
+	if (!http_server->localhost_only) {
+		if ((bound_socket = evhttp_bind_socket_with_handle(http_server->evhttp, http_server->address, http_server->port)) == NULL) {
+       	        	LOG(LOG_ERR, "faile in bind socket");
+			goto fail;
+		}
 	}
-	http_pserver->bound_socket = bound_socket;
-	http_pserver->set_root_cb = set_root_cb;
-	http_pserver->set_api_cb = set_api_cb;
+	if ((local_bound_socket = evhttp_bind_socket_with_handle(http_server->evhttp, LOCAL_HTTP_ADDRESS, http_server->port)) == NULL) {
+                LOG(LOG_ERR, "faile in bind local socket");
+		goto fail;
+	}
+	http_server->bound_socket = bound_socket;
+	http_server->local_bound_socket = local_bound_socket;
+	http_server->set_root_cb = set_root_cb;
+	http_server->set_api_cb = set_api_cb;
 
 	return 0;
 
 fail:
 	if (set_api_cb) {
-		evhttp_del_cb(evhttp, api_url_path);
+		evhttp_del_cb(http_server->evhttp, http_server->api_url_path);
 	}
 	if (set_root_cb) {
-		evhttp_del_cb(evhttp, root_url_path);
+		evhttp_del_cb(http_server->evhttp, http_server->root_url_path);
 	}
 	if (bound_socket) {
 		evhttp_del_accept_socket(http_server->evhttp, bound_socket);
+	}
+	if (local_bound_socket) {
+		evhttp_del_accept_socket(http_server->evhttp, local_bound_socket);
 	}
 	
 	return 1;
@@ -190,6 +242,9 @@ http_server_stop(
 	if (http_server->bound_socket) {
 		evhttp_del_accept_socket(http_server->evhttp, http_server->bound_socket);
 	}
+	if (http_server->local_bound_socket) {
+		evhttp_del_accept_socket(http_server->evhttp, http_server->local_bound_socket);
+	}
 
 	return 0;
 }
@@ -203,9 +258,11 @@ http_server_destroy(
 		return 1;
 	}
 	if (http_server->evhttp) {
-		evhttp_free(evhttp);
+		evhttp_free(http_server->evhttp);
 	}
 	free(http_server);
+
+	return 0;
 }
 
 
@@ -228,13 +285,13 @@ root_cb(
 	struct evhttp_uri *decoded = NULL;
 	char *decoded_path = NULL;
 	char *file_path = NULL;
-
-	/* XXXX writing XXX */
-	struct evbuffer *evb = NULL;
 	size_t len;
-	int fd = -1;
 	struct stat st;
-	/* XXX */
+	struct evbuffer *evb = NULL;
+	const char *extension;
+	const char *content_type = NULL;
+	int i;
+	int fd = -1;
 	
 	int error = 0;
 	int status_code = 0;
@@ -284,60 +341,76 @@ root_cb(
 	if (stat(file_path, &st)<0) {
 		error = 1;
 		status_code = HTTP_NOTFOUND;
-		reason = "could not allocate memory of resource path";
+		reason = "Not found";
 		goto last;
 	}
 
 	if (S_ISDIR(st.st_mode)) {
 		error = 1;
 		status_code = HTTP_NOTFOUND;
-		reason = "could not allocate memory of resource path";
+		reason = "Not found";
 		goto last;
 	}
 
-	if (evb = evbuffer_new()) == NULL) {
+	if ((evb = evbuffer_new()) == NULL) {
 		error = 1;
 		status_code = HTTP_INTERNAL;
 		reason = "could not allocate memory of response buffer";
 		goto last;
 	}
 	
-	/* XXX writing XXX */
-	const char *type = guess_content_type(decoded_path);
+	extension = strrchr(file_path, '.');
+	if (extension == NULL || strchr(extension, '/')) {
+		error = 1;
+		status_code = HTTP_NOTFOUND;
+		reason = "Not found";
+		goto last;
+	}
+	for (i = 0; i < sizeof(content_types)/sizeof(content_type_map_t); i++) {
+		if (evutil_ascii_strcasecmp(content_types[i].extension, extension) == 0) {
+			content_type = content_types[i].content_type;
+		}
+	}
+	if (content_type == NULL) {
+		error = 1;
+		status_code = HTTP_NOTFOUND;
+		reason = "Not found";
+		goto last;
+	}
 	if ((fd = open(file_path, O_RDONLY)) < 0) {
-		perror("open");
-		goto err;
+		error = 1;
+		status_code = HTTP_INTERNAL;
+		reason = "could not open resource";
+		goto last;
 	}
-
 	if (fstat(fd, &st)<0) {
-		/* Make sure the length still matches, now that we
-		 * opened the file :/ */
-		perror("fstat");
-		goto err;
+		error = 1;
+		status_code = HTTP_NOTFOUND;
+		reason = "Not found";
+		goto last;
 	}
-	evhttp_add_header(evhttp_request_get_output_headers(req),
-	    "Content-Type", type);
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", content_type);
 	evbuffer_add_file(evb, fd, 0, st.st_size);
 	evhttp_send_reply(req, 200, "OK", evb);
-	/* XXX XXX XXX*/
-
 
 last:
 	if (error) {
 		evhttp_send_error(req, status_code, reason);
 	}
-
-	if (decoded) {
-		evhttp_uri_free(decoded);
+	if (fd >= 0) {
+		close(fd);
 	}
-	if (decoded_path) {
-		free(decoded_path);
+	if (evb) {
+		evbuffer_free(evb);
 	}
 	if (file_path) {
 		free(file_path);
 	}
-	if (evb) {
-		evbuffer_free(evb);
+	if (decoded_path) {
+		free(decoded_path);
+	}
+	if (decoded) {
+		evhttp_uri_free(decoded);
 	}
 
 	return;

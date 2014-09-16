@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <getopt.h>
-#include <syslog.h>
 #include <event2/event.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
@@ -100,7 +99,7 @@ main(
 		return 1;
 	}
 
-	if (http_server_create(&fplugstatd.http_server, fplugstatd,event_base, fplugstatd.config)) {
+	if (http_server_create(&fplugstatd.http_server, fplugstatd.event_base, fplugstatd.config)) {
 		LOG(LOG_ERR, "failed in create http server");
 		return 1;
 	}
@@ -188,7 +187,7 @@ last:
 		event_free(fplugstatd.sig_int_event);
 	}
 	if (fplugstatd.http_server) {
-		http_server_free(fplugstatd.http_server)
+		http_server_destroy(fplugstatd.http_server);
 	}
 	if (fplugstatd.config) {
 		config_destroy(fplugstatd.config);

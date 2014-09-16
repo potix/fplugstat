@@ -1,6 +1,8 @@
 #ifndef STRING_UTIL_H
 #define STRING_UTIL_H
 
+#include <sys/param.h>
+
 #if !defined(strlcpy)
 #define USE_BSD_STRLCPY
 size_t

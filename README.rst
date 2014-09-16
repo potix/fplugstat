@@ -14,10 +14,6 @@ usage
 
 ::
 
-    fplugstat -d /dev/rfcomm1 -thiw
-
-
-respect
--------
-
-This was made based on https://github.com/goto2048/fplug_for_linux
+    fplugstatd -c /etc/fplugstatd.conf
+    fplugstat [-d <dev number>] [-n <dev name>] -thiw
+    
