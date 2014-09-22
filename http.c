@@ -433,8 +433,9 @@ api_cb(
 	/* GET /api/statistics/realtime/humidity 湿度取得要求 湿度取得要求受理応答 湿度取得要求不可応答*/	
 	/* GET /api/statistics/realtime/illumination 照度取得要求 照度取得要求受理応答 照度取得要求不可応答*/	
 	/* GET /api/statistics/realtime/temperature 温度取得要求 温度取得要求受理応答 温度取得要求不可応答 */	
+	/* GET /api/statistics/realtime 上全部まとめてとる */	
 	/* GET /api/statistics/total/power/current 積算電力量取得要求 積算電力量取得応答 // 24時間分の積算 */	
-	/* GET /api/statistics/total/power/past 積算電力量取得要求 積算電力量取得応答 (過去分) // 24時間分の積算 */	
+	/* GET /api/statistics/total/power/past?datetime=201402041111 積算電力量取得要求 積算電力量取得応答 (過去分) // 24時間分の積算 // 過去時間指定から過去24時間分*/	
 	/* GET /api/statistics/total/other  温度、湿度、照度データ取得要求  温度、湿度、照度データ取得応答 // 24時間分 */	
 	/* DELETE /api/statistics プラグ初期設定要求, プラグ初期設定要求受理応答, プラグ初期設定要求受理応答*/	
 
