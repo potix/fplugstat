@@ -55,6 +55,7 @@ struct http_server {
 	unsigned short port;
 	char root_url_path[URL_PATH_MAX];
         char api_url_path[URL_PATH_MAX];
+	int api_url_path_len;
         char resource_path[URL_PATH_MAX];
         //fplug_devicies_t *fplug_devicies;
 };
@@ -67,6 +68,13 @@ struct content_type_map {
 static void default_cb(
     struct evhttp_request *req,
     void *arg);
+
+static int api_cb(
+    struct evhttp_request *req,
+    const char *decoded_path,
+    http_server_t *http_server,
+    int *status_code,
+    const char **reason);
 
 struct content_type_map content_types[] = {
 	{ ".html", "text/html"       },
@@ -145,6 +153,7 @@ http_server_create(
 	new->port = port;
 	strlcpy(new->root_url_path, root_url_path, sizeof(new->root_url_path));
 	strlcpy(new->api_url_path, api_url_path, sizeof(new->api_url_path));
+	new->api_url_path_len = strlen(api_url_path);
 	strlcpy(new->resource_path, resource_path, sizeof(new->resource_path));
 	*http_server = new;
 
@@ -242,6 +251,7 @@ default_cb(
 	struct evhttp_uri *decoded = NULL;
 	char *decoded_path = NULL;
 	char *file_path = NULL;
+	size_t url_len;
 	size_t len;
 	struct stat st;
 	struct evbuffer *evb = NULL;
@@ -257,14 +267,8 @@ default_cb(
 	ASSERT(arg != NULL);
 
         LOG(LOG_DEBUG, "default callback");
+
 	uri = evhttp_request_get_uri(req);
-	if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-		error = 1;
-		status_code = HTTP_BADMETHOD;
-		reason = "unsupport method";
-                LOG(LOG_DEBUG, reason);
-		goto last; 
-	}
 	decoded = evhttp_uri_parse(uri);
 	if (!decoded) {
 		error = 1;
@@ -293,6 +297,32 @@ default_cb(
 		reason = "unsupport path format";
                 LOG(LOG_DEBUG, reason);
 		goto last;
+	}
+
+	url_len = strlen(decoded_path);
+	if (url_len >= http_server->api_url_path_len &&
+	    strncmp(decoded_path, http_server->api_url_path, http_server->api_url_path_len) == 0) {
+		if (evhttp_request_get_command(req) != EVHTTP_REQ_GET 
+		    && evhttp_request_get_command(req) != EVHTTP_REQ_DELETE) {
+			error = 1;
+			status_code = HTTP_BADMETHOD;
+			reason = "unsupport method";
+			LOG(LOG_DEBUG, reason);
+			goto last; 
+		}
+		// api handling
+		if (api_cb(req, decoded_path, http_server, &status_code, &reason)) {
+			error = 1;
+		}
+		goto last;
+	}
+
+	if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+		error = 1;
+		status_code = HTTP_BADMETHOD;
+		reason = "unsupport method";
+                LOG(LOG_DEBUG, reason);
+		goto last; 
 	}
 
 	len = strlen(http_server->resource_path) + 1 /* '/' */ + strlen(decoded_path) + 1 /* '\0' */;
@@ -389,4 +419,28 @@ last:
 	}
 
 	return;
+}
+
+static int
+api_cb(
+    struct evhttp_request *req,
+    const char *decoded_path,
+    http_server_t *http_server,
+    int *status_code,
+    const char **reason)
+{
+	/* GET /api/statistics/realtime/power リアルタイム消費電力取得要求 リアルタイム消費電力取得要求受理応答 リアルタイム消費電力取得要求不可応答*/	
+	/* GET /api/statistics/realtime/humidity 湿度取得要求 湿度取得要求受理応答 湿度取得要求不可応答*/	
+	/* GET /api/statistics/realtime/illumination 照度取得要求 照度取得要求受理応答 照度取得要求不可応答*/	
+	/* GET /api/statistics/realtime/temperature 温度取得要求 温度取得要求受理応答 温度取得要求不可応答 */	
+	/* GET /api/statistics/total/power/current 積算電力量取得要求 積算電力量取得応答 // 24時間分の積算 */	
+	/* GET /api/statistics/total/power/past 積算電力量取得要求 積算電力量取得応答 (過去分) // 24時間分の積算 */	
+	/* GET /api/statistics/total/other  温度、湿度、照度データ取得要求  温度、湿度、照度データ取得応答 // 24時間分 */	
+	/* DELETE /api/statistics プラグ初期設定要求, プラグ初期設定要求受理応答, プラグ初期設定要求受理応答*/	
+
+	/* 初期化時にやるもの */
+	/* 日時設定要求 日時設定応答 */
+
+
+	return 0;
 }
