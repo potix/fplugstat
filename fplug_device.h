@@ -1,34 +1,34 @@
 #ifndef FPLUG_DEVICE_H
 #define FPLUG_DEVICE_H
 
-#define MAX_FPLUG_DEVICE 7
+#define MAX_BLUETOOTH_DEVICE 8
 
-struct fplug_device {
+struct bluetooth_device {
         char device_name[32];
         char device_address[32]; 
         struct sockaddr_rc saddr;
         int sd;
         int connected;
 };
-typedef struct fplug_device fplug_device_t;
+typedef struct bluetooth_device bluetooth_device_t;
 
-struct fplug_devicies {
-        fplug_device_t fplug_device[MAX_FPLUG_DEVICE];
+struct fplug_device {
+        bluetooth_device_t bluetooth_device[MAX_BLUETOOTH_DEVICE];
         int available_count;
 };
-typedef struct fplug_devicies fplug_devicies_t;
+typedef struct fplug_device fplug_device_t;
 
 /*
- * fplugデバイス構造体を初期化する
+ * fplugデバイスインスタンスの作成
  */
-int initialize_fplug_devicies(fplug_devicies_t *fplug_devicies);
+int fplug_device_create(fplug_device_t *fplug_device, config_t *config);
 /*
  * fplugデバイスに接続する
  */
-int connect_bluetooth_devicies(fplug_devicies_t *fplug_devicies);
+int fplug_device_connect(fplug_device_t *fplug_device);
 /*
- * fplugデバイスから切断する
+ * fplugデバイスインスタンスの削除
  */
-int close_bluetooth_devicies(fplug_devicies_t *fplug_devicies);
+int fplug_device_destroy(fplug_device_t *fplug_device);
 
 #endif

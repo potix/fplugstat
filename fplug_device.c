@@ -10,23 +10,43 @@
 
 #include "common_macros.h"
 #include "common_define.h"
+#include "config.h"
 #include "fplug_device.h"
 
 static int connect_bluetooth_device(fplug_device_t *fplug_device);
 static void close_bluetooth_device(fplug_device_t *fplug_device);
 
 int
-initialize_fplug_devicies(
-    fplug_devicies_t *fplug_devicies) {
+fplug_device_create(
+    fplug_devicies_t *fplug_devicies
+    config_t *config) {
 	int i;
 
 	if (fplug_devicies == NULL) {
 		return EINVAL;
 	}
 
+
+
+
+
 	memset(fplug_devicies, 0, sizeof(fplug_devicies_t));
         for (i = 0; i < MAX_FPLUG_DEVICE; i++) {
                 fplug_devicies->fplug_device[i].sd = -1;
+        }
+
+
+
+        // bluetoothに接続
+        for (dev_cnt = 0; dev_cnt < MAX_BLUETOOTH_DEVICE; dev_cnt++) {
+                fplug_device_t *device = &fplugstatd.fplug_devicies.fplug_device[dev_cnt];
+                snprintf(dev_section, sizeof(dev_section), "%s%d", "device", dev_cnt + 1);
+                if (config_get_string(fplugstatd.config, device->device_name, sizeof(device->device_name), dev_section, "name",  NULL, sizeof(device->device_name) - 1)) {
+                        continue;
+                }
+                if (config_get_string(fplugstatd.config, device->device_address, sizeof(device->device_address), dev_section, "address",  NULL, sizeof(device->device_address) - 1)) {
+                        continue;
+                }
         }
 
 	return 0;
