@@ -110,7 +110,7 @@ terminate(
         event_del(&fplugd->timer_event);
 }
 
-static int
+int
 connect_bluetooth(
     fplug_device_t *fplug_device)
 {

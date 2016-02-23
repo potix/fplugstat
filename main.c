@@ -48,6 +48,8 @@ main(
 	fplugstatd_t fplugstatd;
 	char facility[LOG_FACILITY_LEN];
 	char serverity[LOG_SERVERITY_LEN];
+	int dev_cnt;
+	char dev_section[CONFIG_LINE_BUF];
 
 	// 構造体初期化
 	initialize_fplugstatd(&fplugstatd);
@@ -99,12 +101,26 @@ main(
 		return 1;
 	}
 
-	if (http_server_create(&fplugstatd.http_server, fplugstatd.event_base, fplugstatd.config)) {
+	if (http_server_create(&fplugstatd.http_server, fplugstatd.event_base, fplugstatd.config, &fplugstatd.fplug_devicies)) {
 		LOG(LOG_ERR, "failed in create http server");
 		return 1;
 	}
 
-	/* XXX bluetooth initialize) */
+	// bluetoothに接続
+	for (dev_cnt = 0; dev_cnt < 8; dev_cnt++) {
+		fplug_device_t *device = &fplugstatd.fplug_devicies.fplug_device[dev_cnt];
+		snprintf(dev_section, sizeof(dev_section), "%s%d", "device", dev_cnt + 1);
+		if (config_get_string(fplugstatd.config, device->device_name, sizeof(device->device_name), dev_section, "name",  NULL, sizeof(device->device_name) - 1)) {
+			continue;
+		}
+		if (config_get_string(fplugstatd.config, device->device_address, sizeof(device->device_address), dev_section, "address",  NULL, sizeof(device->device_address) - 1)) {
+			continue;
+		}
+	}
+	if (connect_bluetooth_devicies(&fplugstatd.fplug_devicies)) {
+		LOG(LOG_ERR, "failed in connect to bluetooth");
+		return 1;
+	}
 
 	// シグナルマスク
 	sigemptyset(&fplugstatd.sig_block_mask);
@@ -194,6 +210,7 @@ last:
 	if (fplugstatd.http_server) {
 		http_server_destroy(fplugstatd.http_server);
 	}
+	close_bluetooth_devicies(&fplugstatd.fplug_devicies);
 	if (fplugstatd.config) {
 		config_destroy(fplugstatd.config);
 	}
@@ -214,7 +231,9 @@ initialize_fplugstatd(
 	memset(fplugstatd, 0, sizeof(fplugstatd_t));
 	fplugstatd->config_file = DEFAULT_CONFIG_FILE;
 	fplugstatd->event_base = event_base_new();
-	initialize_fplug_devicies(&fplugstatd->fplug_devicies);
+	if (initialize_fplug_devicies(&fplugstatd->fplug_devicies)) {
+		fprintf(stderr, "failed in initialize of fplug devicies");
+	}
 }
 
 static int

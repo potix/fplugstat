@@ -10,11 +10,14 @@
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/buffer.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/rfcomm.h>
 
 #include "common_macros.h"
 #include "common_define.h"
 #include "config.h"
 #include "logger.h"
+#include "fplug_device.h"
 #include "string_util.h"
 #include "http.h"
 
@@ -49,15 +52,13 @@
 struct http_server {
 	struct evhttp *evhttp;
 	struct evhttp_bound_socket *bound_socket;
-	struct evhttp_bound_socket *local_bound_socket;
-	int localhost_only;
 	char address[NI_MAXHOST];
 	unsigned short port;
 	char root_url_path[URL_PATH_MAX];
         char api_url_path[URL_PATH_MAX];
 	int api_url_path_len;
         char resource_path[URL_PATH_MAX];
-        //fplug_devicies_t *fplug_devicies;
+        fplug_devicies_t *fplug_devicies;
 };
 
 struct content_type_map {
@@ -93,11 +94,11 @@ int
 http_server_create(
     http_server_t **http_server,
     struct event_base *event_base,
-    config_t *config)
+    config_t *config,
+    fplug_devicies_t *fplug_devicies)
 {
 	http_server_t *new = NULL;
 	struct evhttp *evhttp = NULL;
-	int localhost_only = 0;
 	char address[NI_MAXHOST];
 	unsigned short port;
 	char root_url_path[URL_PATH_MAX];
@@ -116,11 +117,6 @@ http_server_create(
 	if ((evhttp = evhttp_new(event_base)) == NULL) {
 		LOG(LOG_ERR, "failed in create evhttp");
 		goto fail;
-	}
-	if (config_get_bool(config, &localhost_only, "controller", "localhostOnly", "true")) {
-                LOG(LOG_ERR, "faile in get localhost only flag from config");
-                goto fail;
-
 	}
         if (config_get_string(config, address, sizeof(address),
 	    "controller", "httpAddress", DEFAULT_HTTP_ADDRESS, sizeof(address) - 1)) {
@@ -148,13 +144,13 @@ http_server_create(
         }
 	evhttp_set_gencb(evhttp, default_cb, new);
 	new->evhttp = evhttp;
-	new->localhost_only = localhost_only;
 	strlcpy(new->address, address, sizeof(new->address));
 	new->port = port;
 	strlcpy(new->root_url_path, root_url_path, sizeof(new->root_url_path));
 	strlcpy(new->api_url_path, api_url_path, sizeof(new->api_url_path));
 	new->api_url_path_len = strlen(api_url_path);
 	strlcpy(new->resource_path, resource_path, sizeof(new->resource_path));
+        new->fplug_devicies = fplug_devicies;
 	*http_server = new;
 
 	return 0;
@@ -174,33 +170,22 @@ http_server_start(
     http_server_t *http_server)
 {
 	struct evhttp_bound_socket *bound_socket = NULL;
-	struct evhttp_bound_socket *local_bound_socket = NULL;
 
 	if (http_server == NULL) {
 		errno = EINVAL;
 		return 1;
 	}
-	if (!http_server->localhost_only) {
-		if ((bound_socket = evhttp_bind_socket_with_handle(http_server->evhttp, http_server->address, http_server->port)) == NULL) {
-       	        	LOG(LOG_ERR, "faile in bind socket");
-			goto fail;
-		}
-	}
-	if ((local_bound_socket = evhttp_bind_socket_with_handle(http_server->evhttp, LOCAL_HTTP_ADDRESS, http_server->port)) == NULL) {
-                LOG(LOG_ERR, "faile in bind local socket");
+	if ((bound_socket = evhttp_bind_socket_with_handle(http_server->evhttp, http_server->address, http_server->port)) == NULL) {
+               	LOG(LOG_ERR, "faile in bind socket %s:%d", http_server->address, http_server->port);
 		goto fail;
 	}
 	http_server->bound_socket = bound_socket;
-	http_server->local_bound_socket = local_bound_socket;
 
 	return 0;
 
 fail:
 	if (bound_socket) {
 		evhttp_del_accept_socket(http_server->evhttp, bound_socket);
-	}
-	if (local_bound_socket) {
-		evhttp_del_accept_socket(http_server->evhttp, local_bound_socket);
 	}
 	
 	return 1;
@@ -216,9 +201,6 @@ http_server_stop(
 	}
 	if (http_server->bound_socket) {
 		evhttp_del_accept_socket(http_server->evhttp, http_server->bound_socket);
-	}
-	if (http_server->local_bound_socket) {
-		evhttp_del_accept_socket(http_server->evhttp, http_server->local_bound_socket);
 	}
 
 	return 0;
@@ -397,13 +379,9 @@ default_cb(
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", content_type);
 	evbuffer_add_file(evb, fd, 0, st.st_size);
 	evhttp_send_reply(req, 200, "OK", evb);
-
 last:
 	if (error) {
 		evhttp_send_error(req, status_code, reason);
-	}
-	if (fd >= 0) {
-		close(fd);
 	}
 	if (evb) {
 		evbuffer_free(evb);
