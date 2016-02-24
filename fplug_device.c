@@ -12,14 +12,17 @@
 #include "common_define.h"
 #include "config.h"
 #include "fplug_device.h"
-#include "stat_storage.h"
+#include "stat_store.h"
 
 #define DEFAULT_MAX_DEVICE 3
 #define DEFAULT_POLLING_INTERVAL 5
 
+#define NAME_MAX_LEN 64
+#define ADDRESS_MAX_LEN 32
+
 struct bluetooth_device {
-        char device_name[64];
-        char device_address[32];
+        char device_name[NAME_MAX_LEN];
+        char device_address[ADDRESS_MAX_LEN];
         struct sockaddr_rc saddr;
         int sd;
         int connected;
@@ -49,7 +52,9 @@ fplug_device_create(
 	int i;
         char dev_section[CONFIG_LINE_BUF];
 
-	if (fplug_device == NULL) {
+	if (fplug_device == NULL ||
+	    config == NULL ||
+	    event_base == NULL) {
 		return EINVAL;
 	}
 
@@ -167,6 +172,10 @@ int
 fplug_device_polling_stop(
     fplug_device_t *fplug_device) {
 
+	if (fplug_device == NULL) {
+		return EINVAL;
+	}
+
 	evtimer_del(fplug_device->polling_event);
 
 	return 0;
@@ -182,24 +191,71 @@ fplug_device_destroy(
 		return EINVAL;
 	}
         for (i = 0; i < fplug_device->max_device; i++) {
-		close_bluetooth_device(&fplug_device->bluetooth_device[i]);
-        }
-        for (i = 0; i < new->max_device; i++) {
 		bluetooth_device_t *btdev = new->bluetooth_device[i];
+		close_bluetooth_device(btdev);
 		if (btdev->stat_store) {
 			stat_store_destroy(btdev->stat_store);
 			btdev->stat_store = NULL;
 		}
 	}
 	if (fplug_device->bluetooth_device) {
-		event_free(fplug_device->bluetooth_device);
+		free(fplug_device->bluetooth_device);
 	}
 	if (fplug_device->polling_event) {
-		free(fplug_device->polling_event);
+		event_free(fplug_device->polling_event);
 	}
 	free(fplug_device);
 
 	return 0;
+}
+
+int
+fplug_device_active_device_foreach(
+    fplug_device_t *fplug_device,
+    void (*foreach_cb)(char *device_name, char *device_address, void *cb_arg),
+    void *cb_arg)
+{
+
+	if (fplug_device == NULL ||
+	    foreach_cb == NULL) {
+		return EINVAL;
+	}
+
+	for (i = 0; i < fplug_device->max_device; i++) {
+                bluetooth_device_t *btdev = new->bluetooth_device[i];
+		if (btdev->connected) {
+			foreach_cb(btdev->device_name, btdev->device_address, cb_arg);
+                }
+        }
+
+	return 0;
+}
+
+int
+fplug_device_get_stat_store(
+    fplug_device_t *fplug_device,
+    stat_store_t **stat_store,
+    char *device_address)
+{
+	int addr[ADDRESS_MAX_LEN];
+
+	if (fplug_device == NULL ||
+	    stat_store == NULL ||
+	    device_address == NULL) {
+		return EINVAL;
+	}
+
+	strlcpy(addr, device_address, sizeof(addr));
+	for (i = 0; i < fplug_device->max_device; i++) {
+                bluetooth_device_t *btdev = new->bluetooth_device[i];
+		if (strcmp(btdev->device_address, addr) == 0) {
+			*stat_store = btdev->stat_store;
+			return 0;
+		}
+        }
+	LOG(LOG_ERR, "not found device (%s)", addr); 
+
+	return 1;
 }
 
 static int

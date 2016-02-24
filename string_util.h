@@ -2,6 +2,7 @@
 #define STRING_UTIL_H
 
 #include <sys/param.h>
+#include <string.h>
 
 #if !defined(strlcpy)
 #define USE_BSD_STRLCPY
