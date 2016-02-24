@@ -300,3 +300,14 @@ close_bluetooth_device(
         	bluetooth_device->connected = 0;
         }
 }
+
+static int
+fplug_device_polling(
+    fplug_device_t *fplug_device) 
+{
+	ASSERT(fplug_device != NULL);
+
+	LOG(LOG_DEBUG, "polling");
+
+
+}

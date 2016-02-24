@@ -11,7 +11,7 @@
 #define DEFAULT_STORE_POINT 6400000
 
 struct stat_value {
-        time_t time;
+        time_t stat_time;
         unsigned int humidity;
         unsigned int illuminance;
         double temperature;
@@ -77,16 +77,75 @@ fail:
 }
 
 
-/*
- * stat storeを削除する
- */
-void stat_store_destroy(stat_store_t *stat_store);
-/*
- * stat_storeにstatを追加する
- */
-int stat_store_stat_add(stat_store_t *stat_store, time_t time, double temperature, unsigned int humidity, unsigned int illuminance, double rwatt);
-/*
- * stat情報をループ処理で取得する
- */
-int stat_store_stat_foreach(stat_store_t *stat_store, void (*foreach_cb)(time_t time, double temperature, unsigned int humidity, unsigned intilluminance, double rwatt, void *cb_arg), void *cb_arg);
+int
+stat_store_destroy(
+    stat_store_t *stat_store)
+{
+	
+	if (stat_store == NULL) {
+		return EINVAL;
+	}
+	
+	if (stat_store->stat_value) {
+		free(stat_store->stat_value);
+	}
+
+	if (stat_store) {
+		free(stat_store);
+	}
+	
+	return 0;
+}
+
+int
+stat_store_stat_add(
+    stat_store_t *stat_store,
+    time_t stat_time,
+    double temperature,
+    unsigned int humidity,
+    unsigned int illuminance,
+    double rwatt)
+{
+	stat_value_t *stat_value;
+
+	if (stat_store == NULL) {
+		return EINVAL;
+	}
+
+	stat_value = stat_store->stat_value[stat_store->current_point];
+	stat_value->stat_time = stat_time;  
+	stat_value->temperature = temperature;  
+	stat_value->humidity = humidity;  
+	stat_value->illuminance = illuminance;  
+	stat_value->rwatt = rwatt;
+	stat_store->current_point++;
+	if (stat_store->current_point == stat_store->max_point) {
+		stat_store->current_point = 0;
+		stat_store->full = 1;
+	}
+}
+
+int
+stat_store_stat_foreach(
+    stat_store_t *stat_store,
+    void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned intilluminance, double rwatt, void *cb_arg),
+    void *cb_arg)
+{
+	if (stat_store == NULL) {
+		return EINVAL;
+	}
+
+	if (stat_store->full) {
+		for (i = stat_store->current_point + 1; i < stat_store->max_point; i++) {
+			stat_value = stat_store->stat_value[i];
+			foreach_cb(stat_value->stat_time, stat_value->temperature, stat_value->humidity, stat_value->intilluminance, stat_value->rwatt, cb_arg);
+		}
+	}
+	for (i = 0; i < stat_store->current_point; i++) {
+		stat_value = stat_store->stat_value[i];
+		foreach_cb(stat_value->stat_time, stat_value->temperature, stat_value->humidity, stat_value->intilluminance, stat_value->rwatt, cb_arg);
+	}
+
+	return 0;
+}
 
