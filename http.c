@@ -13,10 +13,10 @@
 
 #include "common_macros.h"
 #include "common_define.h"
-#include "config.h"
 #include "logger.h"
-#include "fplug_device.h"
 #include "string_util.h"
+#include "config.h"
+#include "fplug_device.h"
 #include "http.h"
 
 #ifndef URL_PATH_MAX
@@ -56,7 +56,7 @@ struct http_server {
         char api_url_path[URL_PATH_MAX];
 	int api_url_path_len;
         char resource_path[URL_PATH_MAX];
-        fplug_devicies_t *fplug_devicies;
+        fplug_device_t *fplug_device;
 };
 
 struct content_type_map {
@@ -91,9 +91,9 @@ typedef struct content_type_map content_type_map_t;
 int
 http_server_create(
     http_server_t **http_server,
-    struct event_base *event_base,
     config_t *config,
-    fplug_devicies_t *fplug_devicies)
+    struct event_base *event_base,
+    fplug_device_t *fplug_device)
 {
 	http_server_t *new = NULL;
 	struct evhttp *evhttp = NULL;
@@ -148,7 +148,7 @@ http_server_create(
 	strlcpy(new->api_url_path, api_url_path, sizeof(new->api_url_path));
 	new->api_url_path_len = strlen(api_url_path);
 	strlcpy(new->resource_path, resource_path, sizeof(new->resource_path));
-        new->fplug_devicies = fplug_devicies;
+        new->fplug_device = fplug_device;
 	*http_server = new;
 
 	return 0;
@@ -405,19 +405,17 @@ api_cb(
     int *status_code,
     const char **reason)
 {
-	/* GET /api/statistics/realtime/power リアルタイム消費電力取得要求 リアルタイム消費電力取得要求受理応答 リアルタイム消費電力取得要求不可応答*/	
-	/* GET /api/statistics/realtime/humidity 湿度取得要求 湿度取得要求受理応答 湿度取得要求不可応答*/	
-	/* GET /api/statistics/realtime/illumination 照度取得要求 照度取得要求受理応答 照度取得要求不可応答*/	
-	/* GET /api/statistics/realtime/temperature 温度取得要求 温度取得要求受理応答 温度取得要求不可応答 */	
-	/* GET /api/statistics/realtime 上全部まとめてとる */	
-	/* GET /api/statistics/total/power/current 積算電力量取得要求 積算電力量取得応答 // 24時間分の積算 */	
-	/* GET /api/statistics/total/power/past?datetime=201402041111 積算電力量取得要求 積算電力量取得応答 (過去分) // 24時間分の積算 // 過去時間指定から過去24時間分*/	
-	/* GET /api/statistics/total/other  温度、湿度、照度データ取得要求  温度、湿度、照度データ取得応答 // 24時間分 */	
-	/* DELETE /api/statistics プラグ初期設定要求, プラグ初期設定要求受理応答, プラグ初期設定要求受理応答*/	
-
-	/* 初期化時にやるもの */
-	/* 日時設定要求 日時設定応答 */
-
+	/* GET /api/devicies デバイスリスト取得 */
+	/* POST /api/device/realtime/
+           address=XX:XX:XX:XX:XX:XX&start=YYYYMMDD_HHMMSS&end=YYYYMMDD_HHMMSS データ取得 */
+	/* POST /api/device/hourly/power/total
+           address=XX:XX:XX:XX:XX:XX&start=YYYYMMDD_HH 積算電力量取得要求 積算電力量取得応答 // 24時間分の積算 //24時間以内と過去データを自動判定 */	
+	/* POST /api/device/hourly/other
+           address=XX:XX:XX:XX:XX:XX&start=YYYYMMDD_HH 温度、湿度、照度データ取得要求  温度、湿度、照度データ取得応答 // 24時間分 */	
+	/* POST /api/device/initialize
+           address=XX:XX:XX:XX:XX:XX&&datetime=YYYYMMDDHHMM デバイス初期設定 */
+	/* POST /api/device/datetime
+           address=XX:XX:XX:XX:XX:XX&&datetime=YYYYMMDDHHMM デバイス時刻設定 */
 
 	return 0;
 }

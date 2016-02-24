@@ -1,12 +1,14 @@
 #ifndef FPLUG_DEVICE_H
 #define FPLUG_DEVICE_H
 
+#include "stat_store.h"
+
 typedef struct fplug_device fplug_device_t;
 
 /*
  * fplugデバイスインスタンスの作成
  */
-int fplug_device_create(fplug_device_t **fplug_device, config_t *config);
+int fplug_device_create(fplug_device_t **fplug_device, config_t *config, struct event_base *event_base);
 /*
  * fplugデバイスに接続する
  */

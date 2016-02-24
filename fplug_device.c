@@ -5,17 +5,20 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <event2/event.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
 
 #include "common_macros.h"
 #include "common_define.h"
+#include "logger.h"
+#include "string_util.h"
 #include "config.h"
 #include "fplug_device.h"
 #include "stat_store.h"
 
-#define DEFAULT_MAX_DEVICE 3
-#define DEFAULT_POLLING_INTERVAL 5
+#define DEFAULT_MAX_DEVICE "3"
+#define DEFAULT_POLLING_INTERVAL "5"
 
 #define NAME_MAX_LEN 64
 #define ADDRESS_MAX_LEN 32
@@ -41,6 +44,7 @@ struct fplug_device {
 
 static int connect_bluetooth_device(bluetooth_device_t *bluetooth_device);
 static void close_bluetooth_device(bluetooth_device_t *bluetooth_device);
+static void fplug_device_polling(evutil_socket_t fd, short events, void *arg);
 
 int
 fplug_device_create(
@@ -63,9 +67,9 @@ fplug_device_create(
                 LOG(LOG_ERR, "faile in create fplug device");
 		goto fail;
 	}
-	memset(fplug_devicies, 0, sizeof(fplug_devicies_t));
+	memset(fplug_device, 0, sizeof(fplug_device_t));
 	new->event_base = event_base;
-	new->polling_event = evtimer_new(event_base, fplug_device_polling, new)
+	new->polling_event = evtimer_new(event_base, fplug_device_polling, new);
 	if (new->polling_event == NULL) {
                 LOG(LOG_ERR, "faile in create polling event");
                 goto fail;
@@ -81,7 +85,7 @@ fplug_device_create(
         }
 
 	bluetooth_device_new = malloc(sizeof(fplug_device_t) * new->max_device);
-	if (bluetooth_device_new = NULL) {
+	if (bluetooth_device_new == NULL) {
                 LOG(LOG_ERR, "faile in create bluetooth device");
 		goto fail;
 	}
@@ -89,13 +93,13 @@ fplug_device_create(
 	new->bluetooth_device = bluetooth_device_new;
  
 	for (i = 0; i < new->max_device; i++) {
-		bluetooth_device_t *btdev = new->bluetooth_device[i];
+		bluetooth_device_t *btdev = &new->bluetooth_device[i];
 		btdev->sd = -1;
 		snprintf(dev_section, sizeof(dev_section), "%s%d", "device", i + 1);
 		if (config_get_string(config, btdev->device_name, sizeof(btdev->device_name), dev_section, "name",  NULL, sizeof(btdev->device_name) - 1)) {
 			continue;
 		}
-                if (config_get_string(config, btdev->device_address, sizeof(btdev->device_address), dev_section, "address",  NULL, sizeof(device->device_address) - 1)) {
+                if (config_get_string(config, btdev->device_address, sizeof(btdev->device_address), dev_section, "address",  NULL, sizeof(btdev->device_address) - 1)) {
                         continue;
                 }
 		if (stat_store_create(&btdev->stat_store, config)) {
@@ -111,7 +115,7 @@ fail:
 
 	if (bluetooth_device_new) {
 		for (i = 0; i < new->max_device; i++) {
-			bluetooth_device_t *btdev = bluetooth_device_new[i];
+			bluetooth_device_t *btdev = &bluetooth_device_new[i];
 			if (btdev->stat_store) {
 				stat_store_destroy(btdev->stat_store);
 				btdev->stat_store = NULL;
@@ -161,7 +165,7 @@ fplug_device_polling_start(
 	if (fplug_device == NULL) {
 		return EINVAL;
 	}
-	if (evtimer_add(fplug_device->polling_event, &fplug_device.polling_tv)) {
+	if (evtimer_add(fplug_device->polling_event, &fplug_device->polling_interval)) {
                 LOG(LOG_ERR, "faile in create fplug device");
 	}
 
@@ -191,7 +195,7 @@ fplug_device_destroy(
 		return EINVAL;
 	}
         for (i = 0; i < fplug_device->max_device; i++) {
-		bluetooth_device_t *btdev = new->bluetooth_device[i];
+		bluetooth_device_t *btdev = &fplug_device->bluetooth_device[i];
 		close_bluetooth_device(btdev);
 		if (btdev->stat_store) {
 			stat_store_destroy(btdev->stat_store);
@@ -215,6 +219,7 @@ fplug_device_active_device_foreach(
     void (*foreach_cb)(char *device_name, char *device_address, void *cb_arg),
     void *cb_arg)
 {
+	int i;
 
 	if (fplug_device == NULL ||
 	    foreach_cb == NULL) {
@@ -222,7 +227,7 @@ fplug_device_active_device_foreach(
 	}
 
 	for (i = 0; i < fplug_device->max_device; i++) {
-                bluetooth_device_t *btdev = new->bluetooth_device[i];
+                bluetooth_device_t *btdev = &fplug_device->bluetooth_device[i];
 		if (btdev->connected) {
 			foreach_cb(btdev->device_name, btdev->device_address, cb_arg);
                 }
@@ -237,7 +242,8 @@ fplug_device_get_stat_store(
     stat_store_t **stat_store,
     char *device_address)
 {
-	int addr[ADDRESS_MAX_LEN];
+	int i;
+	char addr[ADDRESS_MAX_LEN];
 
 	if (fplug_device == NULL ||
 	    stat_store == NULL ||
@@ -247,7 +253,7 @@ fplug_device_get_stat_store(
 
 	strlcpy(addr, device_address, sizeof(addr));
 	for (i = 0; i < fplug_device->max_device; i++) {
-                bluetooth_device_t *btdev = new->bluetooth_device[i];
+                bluetooth_device_t *btdev = &fplug_device->bluetooth_device[i];
 		if (strcmp(btdev->device_address, addr) == 0) {
 			*stat_store = btdev->stat_store;
 			return 0;
@@ -301,11 +307,15 @@ close_bluetooth_device(
         }
 }
 
-static int
+static void
 fplug_device_polling(
-    fplug_device_t *fplug_device) 
+    evutil_socket_t fd,
+    short events,
+    void *arg)
 {
-	ASSERT(fplug_device != NULL);
+	fplug_device_t *fplug_device = arg;
+
+	ASSERT(arg != NULL);
 
 	LOG(LOG_DEBUG, "polling");
 

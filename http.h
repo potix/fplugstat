@@ -5,9 +5,9 @@ typedef struct http_server http_server_t;
 
 int http_server_create(
     http_server_t **http_server,
-    struct event_base *event_base,
     config_t *config,
-    fplug_devicies_t *fplug_devicies);
+    struct event_base *event_base,
+    fplug_device_t *fplug_device);
 
 int http_server_start(
     http_server_t *http_server);

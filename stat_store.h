@@ -6,7 +6,7 @@ typedef struct stat_store stat_store_t;
 /*
  * stat storeを作成する
  */
-int stat_store_create(stat_store_t **stat_store, config);
+int stat_store_create(stat_store_t **stat_store, config_t *config);
 /*
  * stat storeを削除する
  */

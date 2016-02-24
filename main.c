@@ -12,9 +12,9 @@
 
 #include "common_macros.h"
 #include "common_define.h"
-#include "fplug_device.h"
-#include "config.h"
 #include "logger.h"
+#include "config.h"
+#include "fplug_device.h"
 #include "http.h"
 
 #ifndef DEFAULT_CONFIG_FILE
@@ -106,12 +106,12 @@ main(
 
 	// bluetoothデバイス初期化
         if (fplug_device_create(&fplugstatd.fplug_device, fplugstatd.config, fplugstatd.event_base)) {
-                LOG(LOG_ERR, "failed in initialize of fplug devicies");
+                LOG(LOG_ERR, "failed in initialize of fplug device");
 		return 1;
         }
 
 	// http server作成
-	if (http_server_create(&fplugstatd.http_server, fplugstatd.event_base, fplugstatd.config, &fplugstatd.fplug_device)) {
+	if (http_server_create(&fplugstatd.http_server, fplugstatd.config, fplugstatd.event_base, fplugstatd.fplug_device)) {
 		LOG(LOG_ERR, "failed in create http server");
 		return 1;
 	}
@@ -126,13 +126,13 @@ main(
 
 
 	// fplugに接続
-	if (fplug_device_connect(&fplugstatd.fplug_device)) {
+	if (fplug_device_connect(fplugstatd.fplug_device)) {
 		LOG(LOG_ERR, "failed in connect to fplug");
 		return 1;
 	}
 
 	// fplugのポーリングを開始
-	if (fplug_device_polling_start(&fplugstatd.fplug_device)) {
+	if (fplug_device_polling_start(fplugstatd.fplug_device)) {
 		LOG(LOG_ERR, "failed in polling fplug");
 		return 1;
 	}
@@ -159,7 +159,7 @@ main(
 		http_server_destroy(fplugstatd.http_server);
 	}
 	if (fplugstatd.fplug_device) {
-		fplug_device_destroy(&fplugstatd.fplug_devicies);
+		fplug_device_destroy(fplugstatd.fplug_device);
 	}
 	if (fplugstatd.config) {
 		config_destroy(fplugstatd.config);

@@ -1,6 +1,10 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include <sys/param.h>
+#include <sys/types.h>
+#include <stdint.h>
+
 /* 以下のようなフォーマットを読み込む *
  * [section]                          *
  * key=value                          *

@@ -1,14 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <unistd.h>
 
 #include "common_macros.h"
 #include "common_define.h"
+#include "logger.h"
 #include "config.h"
 #include "stat_store.h"
 
-#define DEFAULT_STORE_POINT 6400000
+#define DEFAULT_STORE_POINT "6400000"
 
 struct stat_value {
         time_t stat_time;
@@ -34,6 +36,7 @@ stat_store_create(
 
 	stat_store_t *new = NULL;
 	stat_value_t *stat_value_new = NULL;
+	uint32_t max_point;
 
 	if (stat_store == NULL ||
 	    config == NULL) {
@@ -45,12 +48,13 @@ stat_store_create(
 		LOG(LOG_ERR, "failed in create stat store");
 		goto fail;
 	}
-	memset(new, 0, izeof(stat_store_t))
+	memset(new, 0, sizeof(stat_store_t));
 
-        if (config_get_uint64(config, (uint64_t *)&new->max_point, "stat", "storePoint", DEFAULT_STORE_POINT, 10, 15000000)) {
+        if (config_get_uint32(config, &max_point, "stat", "storePoint", DEFAULT_STORE_POINT, 10, 15000000)) {
                 LOG(LOG_ERR, "faile in get store point (10 to 15000000)");
                 goto fail;
         }
+	new->max_point = max_point;
 
 	stat_value_new = malloc(sizeof(stat_value_t) * new->max_point);
 	if (stat_value_new == NULL) {
@@ -111,8 +115,7 @@ stat_store_stat_add(
 	if (stat_store == NULL) {
 		return EINVAL;
 	}
-
-	stat_value = stat_store->stat_value[stat_store->current_point];
+	stat_value = &stat_store->stat_value[stat_store->current_point];
 	stat_value->stat_time = stat_time;  
 	stat_value->temperature = temperature;  
 	stat_value->humidity = humidity;  
@@ -123,6 +126,8 @@ stat_store_stat_add(
 		stat_store->current_point = 0;
 		stat_store->full = 1;
 	}
+
+	return 0;
 }
 
 int
@@ -131,19 +136,22 @@ stat_store_stat_foreach(
     void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned intilluminance, double rwatt, void *cb_arg),
     void *cb_arg)
 {
+	stat_value_t *stat_value;
+	int i;
+
 	if (stat_store == NULL) {
 		return EINVAL;
 	}
 
 	if (stat_store->full) {
 		for (i = stat_store->current_point + 1; i < stat_store->max_point; i++) {
-			stat_value = stat_store->stat_value[i];
-			foreach_cb(stat_value->stat_time, stat_value->temperature, stat_value->humidity, stat_value->intilluminance, stat_value->rwatt, cb_arg);
+			stat_value = &stat_store->stat_value[i];
+			foreach_cb(stat_value->stat_time, stat_value->temperature, stat_value->humidity, stat_value->illuminance, stat_value->rwatt, cb_arg);
 		}
 	}
 	for (i = 0; i < stat_store->current_point; i++) {
-		stat_value = stat_store->stat_value[i];
-		foreach_cb(stat_value->stat_time, stat_value->temperature, stat_value->humidity, stat_value->intilluminance, stat_value->rwatt, cb_arg);
+		stat_value = &stat_store->stat_value[i];
+		foreach_cb(stat_value->stat_time, stat_value->temperature, stat_value->humidity, stat_value->illuminance, stat_value->rwatt, cb_arg);
 	}
 
 	return 0;
