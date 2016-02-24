@@ -25,7 +25,7 @@ struct fplugstatd {
 	const char *config_file;
 	int foreground;
         struct event_base *event_base;
-	fplug_devicies_t fplug_devicies;
+	fplug_device_t *fplug_device;
 	config_t *config;
         sigset_t sig_block_mask;
         struct event *sig_term_event;
@@ -48,8 +48,6 @@ main(
 	fplugstatd_t fplugstatd;
 	char facility[LOG_FACILITY_LEN];
 	char serverity[LOG_SERVERITY_LEN];
-	int dev_cnt;
-	char dev_section[CONFIG_LINE_BUF];
 
 	// 構造体初期化
 	if (initialize_fplugstatd(&fplugstatd)) {
@@ -104,30 +102,19 @@ main(
 		return 1;
 	}
 
+	// ここから先はログに出す
+
 	// bluetoothデバイス初期化
-        if (fplug_device_create(&fplugstatd.fplug_device, fplugstatd.config)) {
-                fprintf(stderr, "failed in initialize of fplug devicies");
+        if (fplug_device_create(&fplugstatd.fplug_device, fplugstatd.config, fplugstatd.event_base)) {
+                LOG(LOG_ERR, "failed in initialize of fplug devicies");
 		return 1;
         }
 
-	// statistics poolの作成
-	if (stat_pool_create(&fplugstatd.stat_pool, fplugstatd.event_base, fplugstatd.config)) {
-		LOG(LOG_ERR, "failed in create stat pool");
-		return 1;
-	}
-
-	// device poller作成
-	if (device_poller_create(&fplugstatd.device_polling, fplugstatd.event_base, fplugstatd.config, &fplugstatd.fplug_devicies, &fplugstatd.stat_pool)) {
-		LOG(LOG_ERR, "failed in create device poller");
-		return 1;
-	}
-
 	// http server作成
-	if (http_server_create(&fplugstatd.http_server, fplugstatd.event_base, fplugstatd.config, &fplugstatd.stat_pool)) {
+	if (http_server_create(&fplugstatd.http_server, fplugstatd.event_base, fplugstatd.config, &fplugstatd.fplug_device)) {
 		LOG(LOG_ERR, "failed in create http server");
 		return 1;
 	}
-
 
 	// シグナルマスク
 	sigemptyset(&fplugstatd.sig_block_mask);
@@ -138,15 +125,15 @@ main(
         evsignal_add(fplugstatd.sig_int_event, NULL);
 
 
-	// bluetoothに接続
-	if (connect_bluetooth_devicies(&fplugstatd.fplug_devicies)) {
-		LOG(LOG_ERR, "failed in connect to bluetooth");
+	// fplugに接続
+	if (fplug_device_connect(&fplugstatd.fplug_device)) {
+		LOG(LOG_ERR, "failed in connect to fplug");
 		return 1;
 	}
 
-	/* device pollerの開始 */
-	if (device_poller_start(fplugstatd.device_poller) {
-		LOG(LOG_ERR, "failed in start device poller");
+	// fplugのポーリングを開始
+	if (fplug_device_polling_start(&fplugstatd.fplug_device)) {
+		LOG(LOG_ERR, "failed in polling fplug");
 		return 1;
 	}
 
@@ -155,63 +142,6 @@ main(
 		LOG(LOG_ERR, "failed in start http server");
 		return 1;
 	}
-
-
-
-
-
-
-	
-/*
-	sigaddset(&fplugstatd.sigmask, SIGPIPE);
-	pthread_sigmask(SIG_SETMASK, &fplugstatd.sigmask, NULL);
-	signal_set(&fplugstatd.sigterm_event, SIGTERM, terminate, &fplugstatd);
-	event_base_set(fplugstatd.event_base, &fplugstatd.sigterm_event);
-	signal_add(&fplugstatd.sigterm_event, NULL);
-	signal_set(&fplugstatd.sigint_event, SIGINT, terminate, &fplugstatd);
-	event_base_set(fplugstatd.event_base, &fplugstatd.sigint_event);
-	signal_add(&fplugstatd.sigint_event, NULL);
-	for (i = 0; i < fplugstatd.device_count; i++) {
-		if (connect_bluetooth(&fplugstatd.fplug_device[i])) {
-			continue;
-		}
-		fplugstatd.available_count += 1;
-	}
-	if (fplugstatd.available_count == 0) {
-		fprintf(stderr, "no there available device.");
-		error = 1;
-		goto last;
-	}
-
-
-	
-	
-
-	fplugstatd.timer_tv.tv_sec = 5;
-	fplugstatd.timer_tv.tv_usec = 0;
-	//evtimer_set(&fplugstatd.timer_event, statistics_main, &fplugstatd);
-	event_set(&fplugstatd.timer_event, -1, EV_PERSIST, statistics_main, &fplugstatd);
-	event_base_set(fplugstatd.event_base, &fplugstatd.timer_event);
-	evtimer_add(&fplugstatd.timer_event, &fplugstatd.timer_tv);
-
-
-
-	if (event_base_dispatch(fplugstatd.event_base) == -1) {
-		fprintf(stderr, "failed in event base dispatch");
-		error = 1;
-		goto last;
-	}
-last:
-	for (i = 0; i < fplugstatd.device_count; i++) {
-		close_bluetooth(&fplugstatd.fplug_device[i]);
-	}
-
-
-
-*/
-
-
-
 
 	// イベントループ
 	LOG(LOG_DEBUG, "start event loop");
@@ -227,12 +157,6 @@ last:
 	}
 	if (fplugstatd.http_server) {
 		http_server_destroy(fplugstatd.http_server);
-	}
-	if (fplugstatd.device_poller) {
-		device_poller_destroy(fplugstatd.device_poller);
-	}
-	if (fplugstatd.stat_pool) {
-		stat_pool_destroy(fplugstatd.stat_pool);
 	}
 	if (fplugstatd.fplug_device) {
 		fplug_device_destroy(&fplugstatd.fplug_devicies);
@@ -264,9 +188,6 @@ initialize_fplugstatd(
 	if ((fplugstatd->sig_int_event = evsignal_new(fplugstatd->event_base, SIGINT, terminate, fplugstatd)) == NULL) {
 		LOG(LOG_ERR, "failed in create event of SIGINT");
 		return 1;
-	}
-	if (initialize_fplug_devicies(&fplugstatd->fplug_devicies)) {
-		fprintf(stderr, "failed in initialize of fplug devicies");
 	}
 
 	return 0;
@@ -323,8 +244,13 @@ terminate(
 
 	ASSERT(fplugstatd != NULL);
 
-	http_server_stop(fplugstatd->http_server);
-	device_poller_stop(fplugstatd->device_poller);
+	if (http_server_stop(fplugstatd->http_server)) {
+		LOG(LOG_ERR, "failed in stop http server");
+
+	}
+	if (fplug_device_polling_stop(fplugstatd->fplug_device)) {
+		LOG(LOG_ERR, "failed in stop polling to fplug");
+	}
 	evsignal_del(fplugstatd->sig_term_event);
 	evsignal_del(fplugstatd->sig_int_event);
 }

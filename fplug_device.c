@@ -12,65 +12,137 @@
 #include "common_define.h"
 #include "config.h"
 #include "fplug_device.h"
+#include "stat_storage.h"
 
-static int connect_bluetooth_device(fplug_device_t *fplug_device);
-static void close_bluetooth_device(fplug_device_t *fplug_device);
+#define DEFAULT_MAX_DEVICE 3
+#define DEFAULT_POLLING_INTERVAL 5
+
+struct bluetooth_device {
+        char device_name[64];
+        char device_address[32];
+        struct sockaddr_rc saddr;
+        int sd;
+        int connected;
+        stat_store_t *stat_store;
+};
+typedef struct bluetooth_device bluetooth_device_t;
+
+struct fplug_device {
+        bluetooth_device_t *bluetooth_device;
+        unsigned int max_device;
+        unsigned int available_count;
+	struct event_base *event_base;
+	struct event *polling_event;
+	struct timeval polling_interval;
+};
+
+static int connect_bluetooth_device(bluetooth_device_t *bluetooth_device);
+static void close_bluetooth_device(bluetooth_device_t *bluetooth_device);
 
 int
 fplug_device_create(
-    fplug_devicies_t *fplug_devicies
-    config_t *config) {
+    fplug_device_t **fplug_device,
+    config_t *config,
+    struct event_base *event_base) {
+	fplug_device_t *new = NULL;
+	bluetooth_device_t *bluetooth_device_new = NULL;
 	int i;
+        char dev_section[CONFIG_LINE_BUF];
 
-	if (fplug_devicies == NULL) {
+	if (fplug_device == NULL) {
 		return EINVAL;
 	}
 
-
-
-
-
+	new = malloc(sizeof(fplug_device_t));
+	if (new == NULL) {
+                LOG(LOG_ERR, "faile in create fplug device");
+		goto fail;
+	}
 	memset(fplug_devicies, 0, sizeof(fplug_devicies_t));
-        for (i = 0; i < MAX_FPLUG_DEVICE; i++) {
-                fplug_devicies->fplug_device[i].sd = -1;
+	new->event_base = event_base;
+	new->polling_event = evtimer_new(event_base, fplug_device_polling, new)
+	if (new->polling_event == NULL) {
+                LOG(LOG_ERR, "faile in create polling event");
+                goto fail;
+
+	}
+        if (config_get_uint32(config, (uint32_t *)&new->max_device, "fplug", "maxDevice", DEFAULT_MAX_DEVICE, 1, 7)) {
+                LOG(LOG_ERR, "faile in get max device (1 to 7)");
+                goto fail;
+        }
+        if (config_get_uint32(config, (uint32_t *)&new->polling_interval.tv_sec, "fplug", "pollingInterval", DEFAULT_POLLING_INTERVAL, 3, 86400)) {
+                LOG(LOG_ERR, "faile in get polling interval (3 to 86400)");
+                goto fail;
         }
 
-
-
-        // bluetoothに接続
-        for (dev_cnt = 0; dev_cnt < MAX_BLUETOOTH_DEVICE; dev_cnt++) {
-                fplug_device_t *device = &fplugstatd.fplug_devicies.fplug_device[dev_cnt];
-                snprintf(dev_section, sizeof(dev_section), "%s%d", "device", dev_cnt + 1);
-                if (config_get_string(fplugstatd.config, device->device_name, sizeof(device->device_name), dev_section, "name",  NULL, sizeof(device->device_name) - 1)) {
+	bluetooth_device_new = malloc(sizeof(fplug_device_t) * new->max_device);
+	if (bluetooth_device_new = NULL) {
+                LOG(LOG_ERR, "faile in create bluetooth device");
+		goto fail;
+	}
+	memset(bluetooth_device_new, 0, sizeof(fplug_device_t) * new->max_device);
+	new->bluetooth_device = bluetooth_device_new;
+ 
+	for (i = 0; i < new->max_device; i++) {
+		bluetooth_device_t *btdev = new->bluetooth_device[i];
+		btdev->sd = -1;
+		snprintf(dev_section, sizeof(dev_section), "%s%d", "device", i + 1);
+		if (config_get_string(config, btdev->device_name, sizeof(btdev->device_name), dev_section, "name",  NULL, sizeof(btdev->device_name) - 1)) {
+			continue;
+		}
+                if (config_get_string(config, btdev->device_address, sizeof(btdev->device_address), dev_section, "address",  NULL, sizeof(device->device_address) - 1)) {
                         continue;
                 }
-                if (config_get_string(fplugstatd.config, device->device_address, sizeof(device->device_address), dev_section, "address",  NULL, sizeof(device->device_address) - 1)) {
-                        continue;
-                }
+		if (stat_store_create(&btdev->stat_store, config)) {
+                	LOG(LOG_ERR, "faile in create stat store");
+			goto fail;
+		} 
         }
+	*fplug_device = new;
 
 	return 0;
+
+fail:
+
+	if (bluetooth_device_new) {
+		for (i = 0; i < new->max_device; i++) {
+			bluetooth_device_t *btdev = bluetooth_device_new[i];
+			if (btdev->stat_store) {
+				stat_store_destroy(btdev->stat_store);
+				btdev->stat_store = NULL;
+			}
+		}
+		free(bluetooth_device_new);
+	}
+	if (new) {
+		if (new->polling_event) {
+			free(new->polling_event);
+		}
+		free(new);
+	}
+
+	return 1;
 }
 
 int
-connect_bluetooth_devicies(
-    fplug_devicies_t *fplug_devicies) {
+fplug_device_connect(
+    fplug_device_t *fplug_device) {
 	int i;
 
-	if (fplug_devicies == NULL) {
+	if (fplug_device == NULL) {
 		return EINVAL;
 	}
-        for (i = 0; i < MAX_FPLUG_DEVICE; i++) {
-		if (fplug_devicies->fplug_device[i].device_name[0] != '\0' &&
-		    fplug_devicies->fplug_device[i].device_address[0] != '\0') {
-			if (connect_bluetooth_device(&fplug_devicies->fplug_device[i])) {
+        for (i = 0; i < fplug_device->max_device; i++) {
+		if (fplug_device->bluetooth_device[i].device_name[0] != '\0' &&
+		    fplug_device->bluetooth_device[i].device_address[0] != '\0') {
+			if (connect_bluetooth_device(&fplug_device->bluetooth_device[i])) {
 				continue;
 			}
-			fplug_devicies->available_count++;
+			fplug_device->available_count++;
 		}
         }
-	if (fplug_devicies->available_count == 0) {
-                fprintf(stderr, "no connected bluetooth devicies\n");
+	if (fplug_device->available_count == 0) {
+                LOG(LOG_ERR, "no connected bluetooth devicies\n");
 		return 1;
 	}
 
@@ -78,41 +150,80 @@ connect_bluetooth_devicies(
 }
 
 int
-close_bluetooth_devicies(
-    fplug_devicies_t *fplug_devicies)
+fplug_device_polling_start(
+    fplug_device_t *fplug_device) {
+
+	if (fplug_device == NULL) {
+		return EINVAL;
+	}
+	if (evtimer_add(fplug_device->polling_event, &fplug_device.polling_tv)) {
+                LOG(LOG_ERR, "faile in create fplug device");
+	}
+
+	return 0;
+}
+
+int
+fplug_device_polling_stop(
+    fplug_device_t *fplug_device) {
+
+	evtimer_del(fplug_device->polling_event);
+
+	return 0;
+}
+
+int
+fplug_device_destroy(
+    fplug_device_t *fplug_device)
 {
 	int i;
 
-	if (fplug_devicies == NULL) {
+	if (fplug_device == NULL) {
 		return EINVAL;
 	}
-        for (i = 0; i < MAX_FPLUG_DEVICE; i++) {
-		close_bluetooth_device(&fplug_devicies->fplug_device[i]);
+        for (i = 0; i < fplug_device->max_device; i++) {
+		close_bluetooth_device(&fplug_device->bluetooth_device[i]);
         }
+        for (i = 0; i < new->max_device; i++) {
+		bluetooth_device_t *btdev = new->bluetooth_device[i];
+		if (btdev->stat_store) {
+			stat_store_destroy(btdev->stat_store);
+			btdev->stat_store = NULL;
+		}
+	}
+	if (fplug_device->bluetooth_device) {
+		event_free(fplug_device->bluetooth_device);
+	}
+	if (fplug_device->polling_event) {
+		free(fplug_device->polling_event);
+	}
+	free(fplug_device);
 
 	return 0;
 }
 
 static int
 connect_bluetooth_device(
-    fplug_device_t *fplug_device)
+    bluetooth_device_t *bluetooth_device)
 {
-        fplug_device->sd = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-        fplug_device->saddr.rc_family = AF_BLUETOOTH;
-        fplug_device->saddr.rc_channel = (uint8_t)1;
-        str2ba(fplug_device->device_address, &fplug_device->saddr.rc_bdaddr);
-        if (connect(fplug_device->sd, (struct sockaddr *)&fplug_device->saddr, sizeof(fplug_device->saddr)) < 0) {
-                fprintf(stderr, "can not connect bluetooth (%s)\n", strerror(errno));
+	ASSERT(bluetooth_device != NULL);
+
+        bluetooth_device->sd = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
+        bluetooth_device->saddr.rc_family = AF_BLUETOOTH;
+        bluetooth_device->saddr.rc_channel = (uint8_t)1;
+        str2ba(bluetooth_device->device_address, &bluetooth_device->saddr.rc_bdaddr);
+        if (connect(bluetooth_device->sd, (struct sockaddr *)&bluetooth_device->saddr, sizeof(bluetooth_device->saddr)) < 0) {
+                LOG(LOG_ERR, "can not connect bluetooth (%s)\n", strerror(errno));
                 goto error;
         }
-        fplug_device->connected = 1;
+        bluetooth_device->connected = 1;
 
         return 0;
 
 error:
-        if (fplug_device->sd != -1) {
-                close(fplug_device->sd);
-                fplug_device->sd = -1;
+        if (bluetooth_device->sd != -1) {
+                close(bluetooth_device->sd);
+                bluetooth_device->sd = -1;
         }
 
         return 1;
@@ -120,14 +231,16 @@ error:
 
 static void
 close_bluetooth_device(
-    fplug_device_t *fplug_device)
+    bluetooth_device_t *bluetooth_device)
 {
-        if (!fplug_device->connected) {
+	ASSERT(bluetooth_device != NULL);
+
+        if (!bluetooth_device->connected) {
                 return;
         }
-        fplug_device->connected = 0;
-        if (fplug_device->sd != -1) {
-                close(fplug_device->sd);
-                fplug_device->sd = -1;
+        if (bluetooth_device->sd != -1) {
+                close(bluetooth_device->sd);
+                bluetooth_device->sd = -1;
+        	bluetooth_device->connected = 0;
         }
 }
