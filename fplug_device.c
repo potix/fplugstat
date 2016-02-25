@@ -346,29 +346,21 @@ fplug_device_realtime_stat(
 	time = time(NULL);
 	for (i = 0; i < NELEMS(stat_types); i++) {
 		// フレーム作成
-		if (fplug_device_make_request_frame(bluetooth_device_t *bluetooth_device, &request_frame, &request_frame_len, &request_tid)) {
-			LOG(LOG_ERR, "failed in get echonet lite frame (%d)", i);
+		if (fplug_device_make_request_frame(bluetooth_device, &request_frame, &request_frame_len, &request_tid)) {
+			LOG(LOG_ERR, "failed in make echonet lite request frame (%d)", i);
 			continue;
 		}
 		// フレームを書き込む
 		if (fplug_device_write_request_frame(bluetooth_device->sd, request_frame, request_frame_len)) {
-			LOG(LOG_ERR, "can not write echonet lite frame (%d)", i);
+			LOG(LOG_ERR, "can not write echonet lite request frame (%d)", i);
 			continue;
 		}
 		// 応答を読み込み (共通ヘッダ部分)
-		if (enl_response_frame_init(bluetooth_device->enl_response_frame_info, response_frame, response_frame_len)) {
-
+		if (fplug_device_make_response_frame(bluetooth_device)) {
+			LOG(LOG_ERR, "failed in make echonet lite response frame (%d)", i);
+			continue;
 		}
-		fplug_device_read_response
-		while (true) {
-		if (enl_response_frame_add(bluetooth_device->enl_response_frame_info, response_frame, response_frame_len)) {
-			if (response_frame == NULL) {
-				break;
-			}	
-			fplug_device_read_response
-		}
-		
-		
+		// 取得した応答からデータを読み込み
 		
 		
 		
@@ -442,6 +434,38 @@ fplug_device_make_request_frame(
 	default:
 		LOG(LOG_ERR, "unkown statistics type");
 		return 1;
+	}
+
+	return 0;
+}
+
+static int
+fplug_device_make_response_frame(
+    bluetooth_device_t *bluetooth_device)
+{
+	unsigned char *response_buffer;
+	size_t response_buffer_len;
+
+	if (enl_response_frame_init(bluetooth_device->enl_response_frame_info, &response_buffer, &response_buffer_len)) {
+		LOG(LOG_ERR, "failed in initalize echonet lite frame of response");
+		return 1;
+	}
+	if (fplug_device_read_response(bluetooth_device->sd, response_buffer, response_buffer_len)) {
+		LOG(LOG_ERR, "failed in read response");
+		return 1;
+	}
+	while (1) {
+		if (enl_response_frame_add(bluetooth_device->enl_response_frame_info, &response_buffer, &response_buffer_len)) {
+			LOG(LOG_ERR, "failed in add data to echonet lite frame of response");
+			return 1;
+		}
+		if (response_frame == NULL) {
+			break;
+		}	
+		if (fplug_device_read_response(bluetooth_device->sd, response_buffer, response_buffer_len)) {
+			LOG(LOG_ERR, "failed in read response");
+			return 1;
+		}
 	}
 
 	return 0;
