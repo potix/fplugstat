@@ -3,6 +3,14 @@
 
 typedef struct stat_store stat_store_t;
 
+enum stat_type {
+	TEMPERATURE = 1,
+	HUMIDITY    = 2,
+	ILLUMINANCE = 3,
+	RWATT       = 4,
+};
+typedef enum stat_type stat_type_t;
+
 /*
  * stat storeを作成する
  */

@@ -44,4 +44,8 @@ do {                                             \
         abort();                                 \
 } while(0)
 
+#ifndef NELEMS
+#define NELEMS(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
 #endif
