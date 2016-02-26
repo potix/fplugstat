@@ -14,11 +14,14 @@
  * echonet lite specification 
  * http://echonet.jp/wp/wp-content/uploads/pdf/General/Standard/ECHONET_lite_V1_12_jp/ECHONET-Lite_Ver.1.12_02.pdf
  */
-
-struct enl_frame {
+struct enl_frame_hdr {
         unsigned char ehd1; /* always 0x10 */
         unsigned char ehd2; /* 0x81 or 0x82 */
         unsigned short tid; /* transaction id */
+}__attribute__((__packed__));
+typedef struct enl_frame_hdr enl_frame_hdr_t;
+
+struct enl_frame_edata {
         unsigned char seojcg; /* source echonet lite object class group code */
         unsigned char seojcc; /* source echonet lite object class code */
         unsigned char seojic; /* source echonet lite object instance code */
@@ -27,10 +30,18 @@ struct enl_frame {
         unsigned char deojic; /* destination echonet lite object instance code */
         unsigned char esv; /* echonet lite service */
         unsigned char opc; /* operation property count */
+	/* repeat epc pdc edt */
+}__attribute__((__packed__));
+typedef struct enl_frame_edata enl_frame_edata_t;
+
+struct enl_frame {
+	enl_frame_hdr_t ef_hdr;
+	enl_frame_edata_t ef_edata;
 }__attribute__((__packed__));
 typedef struct enl_frame enl_frame_t;
 
-#define ENL_COMMON_HDR_LEN sizeof(enl_frame_t)
+#define ENL_REGULATION_FRAME_COMMON_LEN sizeof(enl_frame_t)
+#define ENL_ANY_FRAME_COMMON_LEN sizeof(enl_frame_hdr_t)
 
 enum enl_class_group_code {
 	ENL_CG_SENSOR       = 0x00,
@@ -89,7 +100,6 @@ get_transaction_id(void) {
 int
 enl_request_frame_initialize(
     enl_request_frame_info_t *enl_request_frame_info,
-    unsigned char ehd2,
     unsigned char seojcg, 
     unsigned char seojcc,
     unsigned char seojic,
@@ -105,20 +115,20 @@ enl_request_frame_initialize(
 	}
 
 	// frameの初期化
-	memset(enl_request_frame_info->buffer, 0, ENL_COMMON_HDR_LEN);
-	enl_request_frame_info->frame_len = ENL_COMMON_HDR_LEN;
+	memset(enl_request_frame_info->buffer, 0, ENL_REGULATION_FRAME_COMMON_LEN);
+	enl_request_frame_info->frame_len = ENL_REGULATION_FRAME_COMMON_LEN;
 	enl_request_frame_info->opc = 0;
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
-	ef->ehd1 = 0x10;
-	ef->ehd2 = ehd2;
-	ef->tid = htons(get_transaction_id());
-	ef->seojcg = seojcg;
-	ef->seojcc = seojcc;
-	ef->seojic = seojic;
-	ef->deojcg = deojcg;
-	ef->deojcc = deojcc;
-	ef->deojic = deojic;
-	ef->esv = esv;
+	ef->ef_hdr.ehd1 = 0x10;
+	ef->ef_hdr.ehd2 = 0x81;
+	ef->ef_hdr.tid = htons(get_transaction_id());
+	ef->ef_edata.seojcg = seojcg;
+	ef->ef_edata.seojcc = seojcc;
+	ef->ef_edata.seojic = seojic;
+	ef->ef_edata.deojcg = deojcg;
+	ef->ef_edata.deojcc = deojcc;
+	ef->ef_edata.deojic = deojic;
+	ef->ef_edata.esv = esv;
 
 	return 0;
 }
@@ -168,8 +178,8 @@ enl_request_frame_get(
 
 	tid_tmp = get_transaction_id();
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
-	ef->tid = htons(tid_tmp);
-	ef->opc = enl_request_frame_info->opc;
+	ef->ef_hdr.tid = htons(tid_tmp);
+	ef->ef_edata.opc = enl_request_frame_info->opc;
 	*frame = enl_request_frame_info->buffer;
 	*frame_len = enl_request_frame_info->frame_len;
 	if (tid) {
@@ -192,8 +202,8 @@ enl_response_frame_init(
 		return EINVAL;
 	}
 	*buffer = enl_response_frame_info->buffer;
-	*buffer_len = ENL_COMMON_HDR_LEN;
-	enl_response_frame_info->frame_len = ENL_COMMON_HDR_LEN;
+	*buffer_len = ENL_REGULATION_FRAME_COMMON_LEN;
+	enl_response_frame_info->frame_len = ENL_REGULATION_FRAME_COMMON_LEN;
 	enl_response_frame_info->epc_ready = 1;
 	
 	return 0;
@@ -211,12 +221,12 @@ enl_response_frame_add(
 	if (enl_response_frame_info == NULL || 
 	    buffer == NULL || 
 	    buffer_len == NULL ||
-	    enl_response_frame_info->frame_len < ENL_COMMON_HDR_LEN) {
+	    enl_response_frame_info->frame_len < ENL_REGULATION_FRAME_COMMON_LEN) {
 		return EINVAL;
 	}
-	if (enl_response_frame_info->frame_len == ENL_COMMON_HDR_LEN) {
+	if (enl_response_frame_info->frame_len == ENL_REGULATION_FRAME_COMMON_LEN) {
 		ef = (enl_frame_t *)enl_request_frame_info->buffer;
-		enl_response_frame_info->opc = ef->opc;
+		enl_response_frame_info->opc = ef->ef_edata.opc;
 	}
 	if (enl_response_frame_info->opc != 0) {
 		if (enl_response_frame_info->epc_ready) {
@@ -253,7 +263,7 @@ enl_response_frame_get_tid(
 	}
 
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
-	*tid = ntohs(ef->tid);
+	*tid = ntohs(ef->ef_hdr.tid);
 
 	return 0;
 }
@@ -275,9 +285,9 @@ enl_response_frame_get_seoj(
 	}
 
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
-	*seojcg = ef->seojcg;
-	*seojcc = ef->seojcc;
-	*seojic = ef->seojic;
+	*seojcg = ef->ef_edata.seojcg;
+	*seojcc = ef->ef_edata.seojcc;
+	*seojic = ef->ef_edata.seojic;
 
 	return 0;
 }
@@ -299,9 +309,9 @@ enl_response_frame_get_seoj(
 	}
 
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
-	*deojcg = ef->deojcg;
-	*deojcc = ef->deojcc;
-	*deojic = ef->deojic;
+	*deojcg = ef->ef_edata.deojcg;
+	*deojcc = ef->ef_edata.deojcc;
+	*deojic = ef->ef_edata.deojic;
 
 	return 0;
 }
@@ -318,7 +328,7 @@ enl_response_frame_get_esv(
 	}
 
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
-	*esv = ef->esv;
+	*esv = ef->ef_edata.esv;
 
 	return 0;
 }
@@ -336,7 +346,7 @@ enl_response_frame_get_opc(
 	}
 
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
-	*opc = ef->opc;
+	*opc = ef->ef_edata.opc;
 
 	return 0;
 
@@ -364,11 +374,11 @@ enl_response_frame_get_data(
 	}
 
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
-	if (idx > ef->opc) {
+	if (idx > ef->ef_edata.opc) {
 		return ENOENT;
 	}
 
-	handle_ptr = &enl_response_frame_info->buffer[ENL_COMMON_HDR_LEN];
+	handle_ptr = &enl_response_frame_info->buffer[ENL_REGULATION_FRAME_COMMON_LEN];
 	for (i = 0; i < idx; i++) {
 		latest_epc = *handle_ptr;
 		latest_pdc = *(handle_ptr + 1);
@@ -380,4 +390,55 @@ enl_response_frame_get_data(
 	*edt_ptr = latest_edt_ptr;
 
 	retirn 0;
+}
+
+int
+enl_request_any_frame_init(
+    enl_request_any_frame_info_t *enl_request_any_frame_info,
+    unsigned char *edata,
+    size_t edata_len)
+{
+	/* XXX */
+	return 0;
+}
+
+int
+enl_request_any_frame_get(
+    enl_request_any_frame_info_t *enl_request_any_frame_info,
+    unsigned char **frame,
+    size_t *frame_len, unsigned short *tid)
+{
+	/* XXX */
+	return 0;
+}
+
+/* 任意レスポンスフレーム処理 */
+int
+enl_response_any_frame_init(
+    enl_response_any_frame_info_t *enl_response_any_frame_info,
+    size_t edata_len,
+    unsigned char **buffer,
+    size_t *buffer_len)
+{
+	/* XXX */
+	return 0;
+}
+
+int
+enl_response_any_frame_get_tid(
+    enl_response_any_frame_info_t *enl_response_any_frame_info,
+    unsigned short *tid)
+{
+	/* XXX */
+	return 0;
+}
+
+int
+enl_response_any_frame_get_edata(
+    enl_response_any_frame_info_t *enl_response_any_frame_info,
+    unsigned char **edata_ptr,
+    size_t edata_len)
+{
+	/* XXX */
+	return 0;
 }

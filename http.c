@@ -412,7 +412,7 @@ api_cb(
            address=XX:XX:XX:XX:XX:XX&start=YYYYMMDD_HH 積算電力量取得要求 積算電力量取得応答 // 24時間分の積算 //24時間以内と過去データを自動判定 */	
 	/* POST /api/device/hourly/other
            address=XX:XX:XX:XX:XX:XX&start=YYYYMMDD_HH 温度、湿度、照度データ取得要求  温度、湿度、照度データ取得応答 // 24時間分 */	
-	/* POST /api/device/initialize
+	/* POST /api/device/reset
            address=XX:XX:XX:XX:XX:XX&&datetime=YYYYMMDDHHMM デバイス初期設定 */
 	/* POST /api/device/datetime
            address=XX:XX:XX:XX:XX:XX&&datetime=YYYYMMDDHHMM デバイス時刻設定 */

@@ -152,6 +152,8 @@ fplug_device_connect(
 				continue;
 			}
 			fplug_device->available_count++;
+
+			//* XXX 時刻設定する */
 		}
         }
 	if (fplug_device->available_count == 0) {
@@ -267,6 +269,20 @@ fplug_device_get_stat_store(
 
 	return 1;
 }
+
+/* デバイスの初期化 */
+fplug_device_reset()
+
+/* 時刻設定 */
+fplug_device_set_datetime()
+
+/* 24時間分の電力の積算値取得 */
+fplug_device_get_hourly_power_total()
+
+/* 24時間分の温度、湿度、照度を取得 */
+fplug_device_get_hourly_other()
+
+
 
 static int
 connect_bluetooth_device(
@@ -429,7 +445,7 @@ fplug_device_write_request_frame(
 	// フレームの作成
 	switch (type) {
 	case TEMPERATURE:
-		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x11, 0x00, 0x62)) {
+		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x0e, 0xf0 0x00, 0x00, 0x11, 0x00, 0x62)) {
 			LOG(LOG_ERR, "failed in initialize echonet lite frame of temprature");
 			return 1;
 		}
@@ -443,7 +459,7 @@ fplug_device_write_request_frame(
 		}
 		break;
 	case HUMIDITY:
-		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x12, 0x00, 0x62)) {
+		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x0e, 0xf0 0x00, 0x00, 0x12, 0x00, 0x62)) {
 			LOG(LOG_ERR, "failed in initialize echonet lite frame of temprature");
 			return 1;
 		}
@@ -457,7 +473,7 @@ fplug_device_write_request_frame(
 		}
 		break;
 	case ILLUMINANCE:
-		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x0d, 0x00, 0x62)) {
+		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x0e, 0xf0 0x00, 0x00, 0x0d, 0x00, 0x62)) {
 			LOG(LOG_ERR, "failed in initialize echonet lite frame of temprature");
 			return 1;
 		}
@@ -471,7 +487,7 @@ fplug_device_write_request_frame(
 		}
 		break;
 	case RWATT:
-		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x22, 0x00, 0x62)) {
+		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x0e, 0xf0 0x00, 0x00, 0x22, 0x00, 0x62)) {
 			LOG(LOG_ERR, "failed in initialize echonet lite frame of temprature");
 			return 1;
 		}
@@ -488,7 +504,7 @@ fplug_device_write_request_frame(
 		ABORT("NOT REACHED")
 	}
 	// フレームを書き込む
-	if (fplug_device_write_request_frame(bluetooth_device->sd, request_frame, request_frame_len)) {
+	if (fplug_device_write_request(bluetooth_device->sd, request_frame, request_frame_len)) {
 		LOG(LOG_ERR, "can not write echonet lite request frame (%d)", i);
 		continue;
 	}
@@ -529,7 +545,7 @@ fplug_device_read_response_frame(
 }
 
 static int
-fplug_device_write_request_frame(
+fplug_device_write_request(
     int sd,
     unsigned char *frame,
     size_t frame_len)
