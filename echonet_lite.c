@@ -98,7 +98,7 @@ get_transaction_id(void) {
 }
 
 int
-enl_request_frame_initialize(
+enl_request_frame_init(
     enl_request_frame_info_t *enl_request_frame_info,
     unsigned char seojcg, 
     unsigned char seojcc,
@@ -121,7 +121,6 @@ enl_request_frame_initialize(
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
 	ef->ef_hdr.ehd1 = 0x10;
 	ef->ef_hdr.ehd2 = 0x81;
-	ef->ef_hdr.tid = htons(get_transaction_id());
 	ef->ef_edata.seojcg = seojcg;
 	ef->ef_edata.seojcc = seojcc;
 	ef->ef_edata.seojic = seojic;
@@ -144,7 +143,7 @@ enl_request_frame_add(
 	    (pdc > 0 && edt == NULL)) {
 		return EINVAL;
 	}
-	if (enl_request_frame_info->frame_len + 1 + 1 + pdc >= MAX_ENL_FRAME) {
+	if (enl_request_frame_info->frame_len + 1 + 1 + pdc >= MAX_ENL_FRAME_LEN) {
 		return ENOMEM;
 	}
 	enl_request_frame_info->buffer[enl_request_frame_info->frame_len] = epc;
@@ -168,7 +167,6 @@ enl_request_frame_get(
     unsigned short *tid)
 {
 	enl_frame_t *ef;
-	unsigned short tid_tmp;
 
 	if (enl_request_frame_info == NULL ||
 	    frame == NULL ||
@@ -176,14 +174,13 @@ enl_request_frame_get(
 		return EINVAL;
 	}
 
-	tid_tmp = get_transaction_id();
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
-	ef->ef_hdr.tid = htons(tid_tmp);
+	ef->ef_hdr.tid = get_transaction_id();
 	ef->ef_edata.opc = enl_request_frame_info->opc;
 	*frame = enl_request_frame_info->buffer;
 	*frame_len = enl_request_frame_info->frame_len;
 	if (tid) {
-		*tid = tid_tmp;
+		*tid = ef->ef_hdr.tid;
 	}
 
 	return 0;
@@ -201,10 +198,10 @@ enl_response_frame_init(
 	    buffer_len == NULL) {
 		return EINVAL;
 	}
-	*buffer = enl_response_frame_info->buffer;
-	*buffer_len = ENL_REGULATION_FRAME_COMMON_LEN;
 	enl_response_frame_info->frame_len = ENL_REGULATION_FRAME_COMMON_LEN;
 	enl_response_frame_info->epc_ready = 1;
+	*buffer = enl_response_frame_info->buffer;
+	*buffer_len = ENL_REGULATION_FRAME_COMMON_LEN;
 	
 	return 0;
 }
@@ -263,7 +260,7 @@ enl_response_frame_get_tid(
 	}
 
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
-	*tid = ntohs(ef->ef_hdr.tid);
+	*tid = ef->ef_hdr.tid;
 
 	return 0;
 }
@@ -398,7 +395,22 @@ enl_request_any_frame_init(
     unsigned char *edata,
     size_t edata_len)
 {
-	/* XXX */
+	enl_frame_hdr_t *ef_hdr;
+
+	if (enl_request_any_frame_info == NULL) {
+		return EINVAL;
+	}
+
+	// frameの初期化
+	memset(enl_request_frame_info->buffer, 0, ENL_ANY_FRAME_COMMON_LEN);
+	enl_request_any_frame_info->frame_len = ENL_ANY_FRAME_COMMON_LEN + edata;
+	ef_hdr = (enl_frame_hdr_t *)enl_request_any_frame_info->buffer;
+	ef_hdr->ehd1 = 0x10;
+	ef_hdr->ehd2 = 0x82;
+	if (edata_len > 0) {
+		memcpy(&enl_request_any_frame_info->buffer[ENL_ANY_FRAME_COMMON_LEN], edata, edata_len);
+	}
+
 	return 0;
 }
 
@@ -408,7 +420,22 @@ enl_request_any_frame_get(
     unsigned char **frame,
     size_t *frame_len, unsigned short *tid)
 {
-	/* XXX */
+	enl_frame_hdr_t *ef_hdr;
+
+	if (enl_request_any_frame_info == NULL ||
+	    frame == NULL ||
+	    frame_len == NULL) {
+		return EINVAL;
+	}
+
+	ef_hdr = (enl_frame_hdr_t *)enl_request_any_frame_info->buffer;
+	ef_hdr->tid = get_transaction_id();
+	*frame = enl_request_any_frame_info->buffer;
+	*frame_len = enl_request_any_frame_info->frame_len;
+	if (tid) {
+		*tid = ef_hdr->tid;
+	}
+
 	return 0;
 }
 
@@ -420,7 +447,20 @@ enl_response_any_frame_init(
     unsigned char **buffer,
     size_t *buffer_len)
 {
-	/* XXX */
+	if (enl_response_any_frame_info == NULL || 
+	    buffer == NULL || 
+	    buffer_len == NULL) {
+		return EINVAL;
+	}
+	if (ENL_ANY_FRAME_COMMON_LEN + edata_len > MAX_ENL_FRAME_LEN) {
+		return ENOMEM;
+	}
+
+	enl_response_any_frame_info->frame_len = ENL_ANY_FRAME_COMMON_LEN + edata_len;
+	enl_response_any_frame_info->edata_len = edata_len;
+	*buffer = enl_response_frame_info->buffer;
+	*buffer_len = enl_response_any_frame_info->frame_len;
+
 	return 0;
 }
 
@@ -429,7 +469,16 @@ enl_response_any_frame_get_tid(
     enl_response_any_frame_info_t *enl_response_any_frame_info,
     unsigned short *tid)
 {
-	/* XXX */
+	enl_frame_hdr_t *ef_hdr;
+
+	if (enl_response_any_frame_info == NULL || 
+	    tid == NULL) {
+		return EINVAL;
+	}
+
+	ef_hdr = (enl_frame_hdr_t *)enl_request_frame_info->buffer;
+	*tid = ef_hdr->tid;
+
 	return 0;
 }
 
@@ -437,8 +486,17 @@ int
 enl_response_any_frame_get_edata(
     enl_response_any_frame_info_t *enl_response_any_frame_info,
     unsigned char **edata_ptr,
-    size_t edata_len)
+    size_t *edata_len)
 {
-	/* XXX */
+	if (enl_response_any_frame_info == NULL || 
+	    edata_ptr == NULL) {
+		return EINVAL;
+	}
+
+	*edata_ptr = &enl_response_any_frame_info->buffer[ENL_ANY_FRAME_COMMON_LEN];
+	if (edata_len) {
+		*edata_len = enl_response_any_frame_info->edata_len;
+	}
+
 	return 0;
 }
