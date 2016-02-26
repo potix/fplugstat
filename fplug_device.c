@@ -5,6 +5,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <time.h>
 #include <event2/event.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
@@ -337,116 +338,172 @@ fplug_device_realtime_stat(
     fplug_device_t *fplug_device,
     bluetooth_device_t *bluetooth_device)
 {
-	time_t time;
-	unsigned char *request_frame;
-	size_t request_frame_len;
-	unsigned char request_tid;
-	stat_type_t stat_types[] = { TEMPERATURE, HUMIDITY, ILLUMINANCE, RWATT }
+	time_t now;
+        double temperature = 0;
+        unsigned int humidity = 0;
+        unsigned int illuminance = 0;
+        double rwatt = 0;
+	stat_type_t stat_types[] = { TEMPERATURE, HUMIDITY, ILLUMINANCE, RWATT };
+	int i;
+	unsigned char esv;
+	unsigned char opc;
+	unsigned char epc;
+	unsigned char pdc;
+	unsigned char *edt_ptr;
+	unsigned short v;
 
-	time = time(NULL);
+	now = time(NULL);
 	for (i = 0; i < NELEMS(stat_types); i++) {
-		// フレーム作成
-		if (fplug_device_make_request_frame(bluetooth_device, &request_frame, &request_frame_len, &request_tid)) {
+		// リクエストの書き込み
+		if (fplug_device_write_request_frame(bluetooth_device, i)) {
 			LOG(LOG_ERR, "failed in make echonet lite request frame (%d)", i);
 			continue;
 		}
-		// フレームを書き込む
-		if (fplug_device_write_request_frame(bluetooth_device->sd, request_frame, request_frame_len)) {
-			LOG(LOG_ERR, "can not write echonet lite request frame (%d)", i);
-			continue;
-		}
-		// 応答を読み込み (共通ヘッダ部分)
-		if (fplug_device_make_response_frame(bluetooth_device)) {
+		// 応答の読み込み
+		if (fplug_device_read_response_frame(bluetooth_device)) {
 			LOG(LOG_ERR, "failed in make echonet lite response frame (%d)", i);
 			continue;
 		}
-		// 取得した応答からデータを読み込み
-		
-		
-		
+		// 応答のチェック
+		enl_response_frame_get_esv(&bluetooth_device->enl_response_frame_info, &esv);
+		if (esv == 0x52) {
+			LOG(LOG_ERR, "nack response (%d: service = %d)", i, esv);
+			continue;
+		}
+		enl_response_frame_get_opc(&bluetooth_device->enl_response_frame_info, &opc);
+		if (opc == 0) {
+			LOG(LOG_ERR, "no data (%d: count = %d)", i, opc);
+			continue;
+		}
+		enl_response_frame_get_data(&bluetooth_device->enl_response_frame_info, 1, &epc, &pdc, &edt_ptr);
+		switch (i) {
+		case TEMPERATURE:
+			if (pdc < 2) {
+				LOG(LOG_ERR, "unkown value length (%d: len = %d)", i, pdc);
+				continue;
+			}
+			v = ntohs(*((unsigned short *)edt_ptr));
+			temperature = ((int)v)/10;
+			break;
+		case HUMIDITY:
+			if (pdc < 1) {
+				LOG(LOG_ERR, "unkown value length (%d: len = %d)", i, pdc);
+				continue;
+			}
+			humidity = *edt_ptr;
+			break;
+		case ILLUMINANCE:
+			if (pdc < 2) {
+				LOG(LOG_ERR, "unkown value length (%d: len = %d)", i, pdc);
+				continue;
+			}
+			illuminance = ntohs(*((unsigned short *)edt_ptr));
+			break;
+		case RWATT:
+			if (pdc < 2) {
+				LOG(LOG_ERR, "unkown value length (%d: len = %d)", i, pdc);
+				continue;
+			}
+			v = ntohs(*((unsigned short *)edt_ptr));
+			rwatt = ((int)v)/10;
+			break;
+		default:
+			ABORT("NOT REACHED")
+		}
+	}
+	LOG(LOG_DEBUG. "stat: temperature = %llf, humidity = %u, illuminance = %u, rwatt = %llf", temperature, humidity, illuminance, rwatt);
+	if (stat_store_stat_add(bluetooth_device->stat_store, now, temperature, humidity, illuminance, rwatt)) {
+		LOG(LOG_ERR, "failed in add storage of stat");
 	}
 }
 
 static int
-fplug_device_make_request_frame(
+fplug_device_write_request_frame(
     bluetooth_device_t *bluetooth_device,
-    unsigned char **frame,
-    size_t *frame_len,
-    unsigned short *tid)
+    int type)
 {
-	switch (stat_type) {
+	unsigned char *request_frame;
+	size_t request_frame_len;
+	unsigned char request_tid;
+
+	// フレームの作成
+	switch (type) {
 	case TEMPERATURE:
-		if (enl_request_frame_initialize(bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x11, 0x00, 0x62)) {
+		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x11, 0x00, 0x62)) {
 			LOG(LOG_ERR, "failed in initialize echonet lite frame of temprature");
 			return 1;
 		}
-		if (enl_request_frame_add(bluetooth_device->enl_request_frame_info, 0xe0, 0x00, NULL)) {
+		if (enl_request_frame_add(&bluetooth_device->enl_request_frame_info, 0xe0, 0x00, NULL)) {
 			LOG(LOG_ERR, "failed in add data to echonet lite frame of temprature");
 			return 1;
 		}
-		if (enl_request_frame_get(bluetooth_device->enl_request_frame_info, frame, frame_len, tid)) {
+		if (enl_request_frame_get(&bluetooth_device->enl_request_frame_info, &request_frame, &request_frame_len, &request_tid)) {
 			LOG(LOG_ERR, "failed in add data to echonet lite frame of temprature");
 			return 1;
 		}
 		break;
 	case HUMIDITY:
-		if (enl_request_frame_initialize(bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x12, 0x00, 0x62)) {
+		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x12, 0x00, 0x62)) {
 			LOG(LOG_ERR, "failed in initialize echonet lite frame of temprature");
 			return 1;
 		}
-		if (enl_request_frame_add(bluetooth_device->enl_request_frame_info, 0xe0, 0x00, NULL)) {
+		if (enl_request_frame_add(&bluetooth_device->enl_request_frame_info, 0xe0, 0x00, NULL)) {
 			LOG(LOG_ERR, "failed in add data to echonet lite frame of temprature");
 			return 1;
 		}
-		if (enl_request_frame_get(bluetooth_device->enl_request_frame_info, frame, frame_len, tid)) {
+		if (enl_request_frame_get(&bluetooth_device->enl_request_frame_info, &request_frame, &request_frame_len, &request_tid)) {
 			LOG(LOG_ERR, "failed in add data to echonet lite frame of temprature");
 			return 1;
 		}
 		break;
 	case ILLUMINANCE:
-		if (enl_request_frame_initialize(bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x0d, 0x00, 0x62)) {
+		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x0d, 0x00, 0x62)) {
 			LOG(LOG_ERR, "failed in initialize echonet lite frame of temprature");
 			return 1;
 		}
-		if (enl_request_frame_add(bluetooth_device->enl_request_frame_info, 0xe0, 0x00, NULL)) {
+		if (enl_request_frame_add(&bluetooth_device->enl_request_frame_info, 0xe0, 0x00, NULL)) {
 			LOG(LOG_ERR, "failed in add data to echonet lite frame of temprature");
 			return 1;
 		}
-		if (enl_request_frame_get(bluetooth_device->enl_request_frame_info, frame, frame_len, tid)) {
+		if (enl_request_frame_get(&bluetooth_device->enl_request_frame_info, &request_frame, &request_frame_len, &request_tid)) {
 			LOG(LOG_ERR, "failed in add data to echonet lite frame of temprature");
 			return 1;
 		}
 		break;
 	case RWATT:
-		if (enl_request_frame_initialize(bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x22, 0x00, 0x62)) {
+		if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x81, 0x0e, 0xf0 0x00, 0x00, 0x22, 0x00, 0x62)) {
 			LOG(LOG_ERR, "failed in initialize echonet lite frame of temprature");
 			return 1;
 		}
-		if (enl_request_frame_add(bluetooth_device->enl_request_frame_info, 0xe2, 0x00, NULL)) {
+		if (enl_request_frame_add(&bluetooth_device->enl_request_frame_info, 0xe2, 0x00, NULL)) {
 			LOG(LOG_ERR, "failed in add data to echonet lite frame of temprature");
 			return 1;
 		}
-		if (enl_request_frame_get(bluetooth_device->enl_request_frame_info, frame, frame_len, tid)) {
+		if (enl_request_frame_get(&bluetooth_device->enl_request_frame_info, &request_frame, &request_frame_len, &request_tid)) {
 			LOG(LOG_ERR, "failed in add data to echonet lite frame of temprature");
 			return 1;
 		}
 		break;
 	default:
-		LOG(LOG_ERR, "unkown statistics type");
-		return 1;
+		ABORT("NOT REACHED")
+	}
+	// フレームを書き込む
+	if (fplug_device_write_request_frame(bluetooth_device->sd, request_frame, request_frame_len)) {
+		LOG(LOG_ERR, "can not write echonet lite request frame (%d)", i);
+		continue;
 	}
 
 	return 0;
 }
 
 static int
-fplug_device_make_response_frame(
+fplug_device_read_response_frame(
     bluetooth_device_t *bluetooth_device)
 {
 	unsigned char *response_buffer;
 	size_t response_buffer_len;
 
-	if (enl_response_frame_init(bluetooth_device->enl_response_frame_info, &response_buffer, &response_buffer_len)) {
+	if (enl_response_frame_init(&bluetooth_device->enl_response_frame_info, &response_buffer, &response_buffer_len)) {
 		LOG(LOG_ERR, "failed in initalize echonet lite frame of response");
 		return 1;
 	}
@@ -455,7 +512,7 @@ fplug_device_make_response_frame(
 		return 1;
 	}
 	while (1) {
-		if (enl_response_frame_add(bluetooth_device->enl_response_frame_info, &response_buffer, &response_buffer_len)) {
+		if (enl_response_frame_add(&bluetooth_device->enl_response_frame_info, &response_buffer, &response_buffer_len)) {
 			LOG(LOG_ERR, "failed in add data to echonet lite frame of response");
 			return 1;
 		}

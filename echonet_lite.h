@@ -31,6 +31,6 @@ int enl_response_frame_get_deoj(enl_response_frame_info_t *enl_response_frame_in
 int enl_response_frame_get_esv(enl_response_frame_info_t *enl_response_frame_info, unsigned char *esv);
 int enl_response_frame_get_opc(enl_response_frame_info_t *enl_response_frame_info, unsigned char *opc);
 int enl_response_frame_get_data(enl_response_frame_info_t *enl_response_frame_info,
-    unsigned char opc, unsigned char *epc, unsigned char *pdc, unsigned char **edt);
+    unsigned char opc, unsigned char *epc, unsigned char *pdc, unsigned char **edt_ptr);
 
 #endif
