@@ -295,11 +295,107 @@ fplug_device_get_stat_store(
 
 /* デバイスの初期化 */
 int
-fplug_device_reset()
+fplug_device_reset(
+    fplug_device_t *fplug_device,
+    const char *device_address)
+{
+	bluetooth_device_t *bluetooth_device;
+	time_t now;
+	struct tm now_tm;
+	struct {
+		unsigned char hour;
+		unsigned char min;
+	}__attribute__((__packed__)) edt1; 
+	struct {
+		unsigned short year;
+		unsigned char month;
+		unsigned char day;
+	}__attribute__((__packed__)) edt2;
+	unsigned char *request_frame;
+	size_t request_frame_len;
+	unsigned char request_tid;
+	unsigned char *response_buffer;
+	size_t response_buffer_len;
+	unsigned char esv;
+	unsigned char opc;
+
+	if (fplug_device == NULL ||
+	    device_address == NULL) {
+		return EINVAL;
+	}
+	if (fplug_device_get_bluetooth_device(fplug_device, device_address, &bluetooth_device)) {
+		LOG(LOG_ERR, "not found bluetooth device"); 
+		return 1;
+	}
+
+	now = time(NULL);
+	if(localtime_r(&now, &now_tm) == NULL) {
+		LOG(LOG_ERR, "failed in get local time");
+		return 1;
+	}
+	edt1.hour = now_tm.tm_hour;
+	edt1.min = now_tm.tm_min;
+	edt2.year = now_tm.tm_year + 1900;
+	edt2.month = now_tm.tm_mon + 1;
+	edt2.day = now_tm.tm_mday;
+	/* リクエストフレーム書き込み */
+	if (enl_request_frame_initialize(&bluetooth_device->enl_request_frame_info, 0x0e, 0xf0 0x00, 0x00, 0x22, 0x00, 0x61)) {
+		LOG(LOG_ERR, "failed in initialize echonet lite frame of initialize");
+		return 1;
+	}
+	if (enl_request_frame_add(&bluetooth_device->enl_request_frame_info, 0x97, 0x02, &edt1)) {
+		LOG(LOG_ERR, "failed in add data (edt1) to echonet lite frame of initialize");
+		return 1;
+	}
+	if (enl_request_frame_add(&bluetooth_device->enl_request_frame_info, 0x98, 0x04, &edt2)) {
+		LOG(LOG_ERR, "failed in add data (edt2) to echonet lite frame of initialize");
+		return 1;
+	}
+	if (enl_request_frame_get(&bluetooth_device->enl_request_frame_info, &request_frame, &request_frame_len, &request_tid)) {
+		LOG(LOG_ERR, "failed in add data to echonet lite frame of initialize");
+		return 1;
+	}
+	if (device_write_request(bluetooth_device->sd, request_frame, request_frame_len)) {
+		LOG(LOG_ERR, "can not write echonet lite request frame (%d)", i);
+		return 1;	
+	}
+	/* レスポンスフレームの読み出し */
+	if (enl_response_frame_init(&bluetooth_device->enl_response_frame_info, &response_buffer, &response_buffer_len)) {
+		LOG(LOG_ERR, "failed in initalize echonet lite frame of response");
+		return 1;
+	}
+	if (device_read_response(bluetooth_device->sd, response_buffer, response_buffer_len)) {
+		LOG(LOG_ERR, "failed in read response");
+		return 1;
+	}
+	while (1) {
+		if (enl_response_frame_add(&bluetooth_device->enl_response_frame_info, &response_buffer, &response_buffer_len)) {
+			LOG(LOG_ERR, "failed in add data to echonet lite frame of response");
+			return 1;
+		}
+		if (response_frame == NULL) {
+			break;
+		}	
+		if (device_read_response(bluetooth_device->sd, response_buffer, response_buffer_len)) {
+			LOG(LOG_ERR, "failed in read response");
+			return 1;
+		}
+	}
+	/* レスポンスの確認 */
+	enl_response_frame_get_esv(&bluetooth_device->enl_response_frame_info, &esv);
+	if (esv == 0x51) {
+		LOG(LOG_ERR, "nack response (%d: service = %d)", i, esv);
+		return 1;
+	}
+	enl_response_frame_get_opc(&bluetooth_device->enl_response_frame_info, &opc);
+	LOG(LOG_DEBUG, "initalize: esv = %u, opc = %u", esv, opc);
+	
+	return 0;
+}
 
 /* 時刻設定 */
 int
-fplug_device_set_datetime_by_device_address(
+fplug_device_set_datetime(
     fplug_device_t *fplug_device,
     const char *device_address)
 {
@@ -350,8 +446,8 @@ bluetooth_device_set_datetime(
 	set_datetime_request_frame->hour = now_tm.tm_hour;
 	set_datetime_request_frame->min = now_tm.tm_min;
 	set_datetime_request_frame->year = now_tm.tm_year + 1900;
-	set_datetime_request_frame->month = now_tm.month + 1;
-	set_datetime_request_frame->day = now_tm.day;
+	set_datetime_request_frame->month = now_tm.tm_mon + 1;
+	set_datetime_request_frame->day = now_tm.tm_mday;
 	// リクエストの書き込み
 	if (device_write_request(bluetooth_device->sd, &set_datetime_request_frame, sizeof(fplug_set_datetime_request_frame_t))) {
 		LOG(LOG_ERR, "can not write set datetime request frame (%d)", i);
@@ -504,14 +600,15 @@ bluetooth_device_realtime_stat(
 		// 応答のチェック
 		enl_response_frame_get_esv(&bluetooth_device->enl_response_frame_info, &esv);
 		if (esv == 0x52) {
-			LOG(LOG_ERR, "nack response (%d: service = %d)", i, esv);
+			LOG(LOG_ERR, "nack response (%d: service = %u)", i, esv);
 			continue;
 		}
 		enl_response_frame_get_opc(&bluetooth_device->enl_response_frame_info, &opc);
 		if (opc == 0) {
-			LOG(LOG_ERR, "no data (%d: count = %d)", i, opc);
+			LOG(LOG_ERR, "no data (%d: count = %u)", i, opc);
 			continue;
 		}
+		LOG(LOG_DEBUG, "type %d: esv = %u, opc = %u", esv, opc);
 		enl_response_frame_get_data(&bluetooth_device->enl_response_frame_info, 1, &epc, &pdc, &edt_ptr);
 		switch (i) {
 		case TEMPERATURE:
@@ -627,7 +724,7 @@ bluetooth_device_write_request_frame(
 	// フレームを書き込む
 	if (device_write_request(bluetooth_device->sd, request_frame, request_frame_len)) {
 		LOG(LOG_ERR, "can not write echonet lite request frame (%d)", i);
-		continue;
+		return 1;	
 	}
 
 	return 0;
