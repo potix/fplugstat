@@ -4,14 +4,14 @@
 #define MAX_ENL_FRAME_LEN 65535
 
 struct enl_request_frame_info {
-        unsigned char buffer[MAX_ENL_FRAME];
+        unsigned char buffer[MAX_ENL_FRAME_LEN];
         size_t frame_len;
         unsigned char opc;
 };
 typedef struct enl_request_frame_info enl_request_frame_info_t;
 
 struct enl_response_frame_info {
-        unsigned char buffer[MAX_ENL_FRAME];
+        unsigned char buffer[MAX_ENL_FRAME_LEN];
         size_t frame_len;
         unsigned char opc;
         unsigned char epc_ready;
@@ -19,13 +19,13 @@ struct enl_response_frame_info {
 typedef struct enl_response_frame_info enl_response_frame_info_t;
 
 struct enl_request_any_frame_info {
-        unsigned char buffer[MAX_ENL_FRAME];
+        unsigned char buffer[MAX_ENL_FRAME_LEN];
         size_t frame_len;
 };
 typedef struct enl_request_any_frame_info enl_request_any_frame_info_t;
 
 struct enl_response_any_frame_info {
-        unsigned char buffer[MAX_ENL_FRAME];
+        unsigned char buffer[MAX_ENL_FRAME_LEN];
         size_t frame_len;
         size_t edata_len;
 };
@@ -54,4 +54,5 @@ int enl_request_any_frame_get(enl_request_any_frame_info_t *enl_request_any_fram
 int enl_response_any_frame_init(enl_response_any_frame_info_t *enl_response_any_frame_info, size_t edata_len, unsigned char **buffer, size_t *buffer_len);
 int enl_response_any_frame_get_tid(enl_response_any_frame_info_t *enl_response_any_frame_info, unsigned short *tid);
 int enl_response_any_frame_get_edata(enl_response_any_frame_info_t *enl_response_any_frame_info, unsigned char **edata_ptr, size_t *edata_len);
+
 #endif
