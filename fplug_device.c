@@ -67,11 +67,19 @@ struct fplug_set_datetime_response_frame {
 }__attribute__((__packed__));
 typedef struct fplug_set_datetime_response_frame fplug_set_datetime_response_frame_t
 
-struct fplug_hourly_power_data_edt {
+struct fplug_hourly_power_total_data_edt {
 	unsigned char result;
 	unsigned short watt;
 }__attribute__((__packed__));
-typedef struct fplug_hourly_power_data_edt fplug_hourly_power_data_edt_t;
+typedef struct fplug_hourly_power_total_data_edt fplug_hourly_power_total_data_edt_t;
+
+struct fplug_hourly_other_data_edt {
+	unsigned char result;
+	unsigned short temperature;
+	unsigned char humidity;
+	unsigned char illuminance;
+}__attribute__((__packed__));
+typedef struct fplug_hourly_other_data_edt fplug_hourly_other_data_edt_t;
 
 static int connect_bluetooth_device(bluetooth_device_t *bluetooth_device);
 static void close_bluetooth_device(bluetooth_device_t *bluetooth_device);
@@ -445,7 +453,7 @@ fplug_device_get_hourly_power_total(
 	unsigned char *response_buffer;
 	size_t response_buffer_len;
 	unsigned char *response_edata_ptr;
-	fplug_hourly_power_data_edt_t *fplug_hourly_power_data_edt;
+	fplug_hourly_power_total_data_edt_t *fplug_hourly_power_total_data_edt;
 	int i;
 
 	if (fplug_device == NULL ||
@@ -513,18 +521,88 @@ fplug_device_get_hourly_power_total(
 			return 1;
 		}
 	}
-	fplug_hourly_power_data_edt = (fplug_hourly_power_data_edt_t *)(response_edata_ptr + 1);
+	fplug_hourly_power_total_data_edt = (fplug_hourly_power_total_data_edt_t *)(response_edata_ptr + 1);
 	for (i = 0; i < 24; i++) {
-		foreach_cb(fplug_hourly_power_data_edt->result, ((int)fplug_hourly_power_data_edt->watt)/10, cb_arg);
-		fplug_hourly_power_data_edt++;
+		foreach_cb(fplug_hourly_power_total_data_edt->result, ((int)fplug_hourly_power_total_data_edt->watt)/10, cb_arg);
+		fplug_hourly_power_total_data_edt++;
 	}
 	
 	return 0;
 }
 
 /* 24時間分の温度、湿度、照度を取得 */
-fplug_device_get_hourly_other()
+int
+fplug_device_get_hourly_other(
+    const char *device_address,
+    struct tm *start_tm,
+    void (*foreach_cb)(unsigned char result, double temperature, unsigned int humidity, unsigned int illuminance, void *cb_arg),
+    void *cb_arg)
+{
+	bluetooth_device_t *bluetooth_device;
+	fplug_hourly_other_edata_t fplug_hourly_other_edata;
+	unsigned char *request_frame;
+	size_t request_frame_len;
+	unsigned char request_tid;
+	unsigned char *response_buffer;
+	size_t response_buffer_len;
+	unsigned char *response_edata_ptr;
+	fplug_hourly_other_data_edt_t *fplug_hourly_other_data_edt;
+	int i;
 
+	if (fplug_device == NULL ||
+	    device_address == NULL ||
+	    foreach_cb == NULL) {
+		return EINVAL;
+	}
+	if (fplug_device_get_bluetooth_device(fplug_device, device_address, &bluetooth_device)) {
+		LOG(LOG_ERR, "not found bluetooth device"); 
+		return 1;
+	}
+
+	/* start_tmがNULLなら現在時刻としつつ、初期化する方使う */
+	fplug_hourly_other_edata.req_type = 0x17;
+	fplug_hourly_other_edata.hour = start_tm.tm_hour;
+	fplug_hourly_other_edata.min = start_tm.tm_min;
+	fplug_hourly_other_edata.year = start_tm.tm_year + 1900;
+	fplug_hourly_other_edata.month = start_tm.tm_mon + 1;
+	fplug_hourly_other_edata.day = start_tm.tm_mday;
+	/* リクエストフレーム書き込み */
+	if (enl_request_any_frame_init(&bluetooth_device->enl_request_any_frame_info, (unsigned char *)&fplug_hourly_other_edata, sizeof(fplug_hourly_other_edata_t))) {
+		LOG(LOG_ERR, "failed in initialize echonet lite frame of initialize");
+		return 1;
+	}
+	if (enl_request_any_frame_get(&bluetooth_device->enl_request_any_frame_info, &request_frame, &request_frame_len, &request_tid)) {
+		LOG(LOG_ERR, "failed in add data to echonet lite frame of initialize");
+		return 1;
+	}
+	if (device_write_request(bluetooth_device->sd, request_frame, request_frame_len)) {
+		LOG(LOG_ERR, "can not write echonet lite request frame (%d)", i);
+		return 1;	
+	}
+	/* レスポンスフレームの読み出し */
+	if (enl_response_any_frame_init(&bluetooth_device->enl_response_any_frame_info, 74, &response_buffer, &response_buffer_len)) {
+		LOG(LOG_ERR, "failed in initalize echonet lite frame of response");
+		return 1;
+	}
+	if (device_read_response(bluetooth_device->sd, response_buffer, response_buffer_len)) {
+		LOG(LOG_ERR, "failed in read response");
+		return 1;
+	}
+	/* レスポンスの取得 */
+	enl_response_any_frame_get_edata(&bluetooth_device->enl_response_frame_info, &response_edata_ptr, NULL);
+	if (*response_edata_ptr != 0x97) {
+		LOG(LOG_ERR, "invalid response hourly other (%d)", *response_edata_ptr);
+		return 1;
+	}
+	fplug_hourly_other_data_edt = (fplug_hourly_other_data_edt_t *)(response_edata_ptr + 1);
+	for (i = 0; i < 24; i++) {
+		foreach_cb(fplug_hourly_other_data_edt->result, ((int)fplug_hourly_other_data_edt->temperature)/10,
+		    fplug_hourly_other_data_edt->humidity, fplug_hourly_other_data_edt->illuminance, cb_arg);
+		fplug_hourly_other_data_edt++;
+	}
+	
+	return 0;
+}
 
 static int
 bluetooth_device_set_datetime(
