@@ -1,3 +1,6 @@
+#define _XOPEN_SOURCE
+#define _BSD_SOURCE
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdlib.h>
@@ -7,7 +10,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <netdb.h>
-#define __USE_XOPEN
 #include <time.h>
 #include <event2/event.h>
 #include <event2/http.h>
