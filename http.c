@@ -19,6 +19,7 @@
 #include "fplug_device.h"
 #include "http.h"
 
+#define ENTRY_BUF_MAX 4096
 #define URL_PATH_MAX CONFIG_MAX_STR_LEN
 #define HTTP_API_URL_PATH "/api/"
 #define DATETIME_LEN 16
@@ -62,16 +63,15 @@ struct api_callback_arg {
 };
 typedef struct api_callback_arg api_callback_arg_t;
 
-static void default_cb(
-    struct evhttp_request *req,
-    void *arg);
-
-static int api_cb(
-    struct evhttp_request *req,
-    const char *decoded_path,
-    http_server_t *http_server,
-    int *status_code,
-    const char **reason);
+static void default_cb(struct evhttp_request *req, void *arg);
+static int api_cb(struct evhttp_request *req, const char *decoded_path,
+    http_server_t *http_server, int *status_code, const char **reason);
+static void create_active_device_response(const char *device_name, const char *device_address, void *cb_arg);
+static void create_stat_store_response(time_t stat_time, double temperature,
+   unsigned int humidity, unsigned int illuminance, double rwatt, void *cb_arg);
+static void create_hourly_power_total_response(unsigned char result, double watt, void *cb_arg);
+static void create_hourly_other_response( unsigned char result, double temperature,
+    unsigned int humidity, unsigned int illuminance, void *cb_arg);
 
 struct content_type_map content_types[] = {
 	{ ".html", "text/html"       },
@@ -444,11 +444,13 @@ api_cb(
 		goto last;
 	}
 
+	/* api callback argumentの初期化 */
+	api_callback_arg.idx = 0;
+	api_callback_arg.response = response;
+
 	/* api urlで振り分け */
 	api_url_path_len = sizeof(HTTP_API_URL_PATH) - 1;
 	if (cmd_type == EVHTTP_REQ_GET && strcmp(&decoded_path[api_url_path_len], API_DEVICIES_URL) == 0) {
-		api_callback_arg.idx = 0;
-		api_callback_arg.response = response;
 		evbuffer_add(response, "[", 1);
 		if (fplug_device_active_device_foreach(http_server->fplug_device, create_active_device_response, &api_callback_arg)) {
 			LOG_ERR(LOG_INFO, "failed in active device foreach");
@@ -460,8 +462,6 @@ api_cb(
 		evbuffer_add(response, "]", 1);
 		evhttp_send_reply(req, 200, "OK", response);
 	} else if (cmd_type == EVHTTP_REQ_POST && strcmp(&decoded_path[api_url_path_len], API_DEVICIE_REALTIME_URL) == 0) {
-		api_callback_arg.idx = 0;
-		api_callback_arg.response = response;
 		evbuffer_add(response, "[", 1);
 		if (fplug_device_stat_store_foreach(http_server->fplug_device, address, &start_tm, &end_tm create_stat_store_response, &api_callback_arg)) {
 			LOG_ERR(LOG_INFO, "failed in stat store foreach");
@@ -473,8 +473,6 @@ api_cb(
 		evbuffer_add(response, "]", 1);
 		evhttp_send_reply(req, 200, "OK", response);
 	} else if (cmd_type == EVHTTP_REQ_POST && strcmp(&decoded_path[api_url_path_len], API_DEVICIE_HOURLY_POWER_TOTAL_URL) == 0) {
-		api_callback_arg.idx = 0;
-		api_callback_arg.response = response;
 		evbuffer_add(response, "[", 1);
 		if (fplug_device_hourly_power_total_foreach(http_server->fplug_device, address, &start_tm, create_hourly_power_total_response, &api_callback_arg)) {
 			LOG_ERR(LOG_INFO, "failed in hourly power total foreach");
@@ -486,8 +484,6 @@ api_cb(
 		evbuffer_add(response, "]", 1);
 		evhttp_send_reply(req, 200, "OK", response);
 	} else if (cmd_type == EVHTTP_REQ_POST && strcmp(&decoded_path[api_url_path_len], API_DEVICIE_HOURLY_OTHER_URL) == 0) {
-		api_callback_arg.idx = 0;
-		api_callback_arg.response = response;
 		evbuffer_add(response, "[", 1);
 		if (fplug_device_hourly_other_foreach(http_server->fplug_device, address, &start_tm, create_hourly_other_response, &api_callback_arg)) {
 			LOG_ERR(LOG_INFO, "failed in hourly power total foreach");
@@ -540,24 +536,42 @@ create_active_device_response(
     void *cb_arg)
 {
 	api_callback_arg_t *api_callback_arg = cb_arg;
+	char buf[ENTRY_BUF_MAX];
+	int len;
 	
 	ASSERT(cb_arg != NULL);
-}
 
+	if (api_callback_arg->idx != 0) {
+		evbuffer_add(response, ",", 1);
+	}
+	len = snprintf(buf, sizeof(buf), "{\"name\":\"%s\",\"address\":\"%s\"}", device_name, device_address);
+	evbuffer_add(response, buf, len);
+	api_callback_arg->idx++;
+}
 
 static void
 create_stat_store_response(
    time_t stat_time,
    double temperature,
    unsigned int humidity,
-   unsigned intilluminance,
+   unsigned int illuminance,
    double rwatt,
    void *cb_arg)
 {
 	api_callback_arg_t *api_callback_arg = cb_arg;
+	char buf[ENTRY_BUF_MAX];
+	int len;
 	
 	ASSERT(cb_arg != NULL);
 
+	if (api_callback_arg->idx != 0) {
+		evbuffer_add(response, ",", 1);
+	}
+	len = snprintf(buf, sizeof(buf),
+            "{\"temperature\":\"%lf\",\"humidity\":\"%u\",\"intilluminance\":\"%u\",\"rwatt\":\"%lf\"}",
+            temperature, humidity, illuminance, rwatt);
+	evbuffer_add(response, buf, len);
+	api_callback_arg->idx++;
 }
 
 static void
@@ -567,9 +581,17 @@ create_hourly_power_total_response(
     void *cb_arg)
 {
 	api_callback_arg_t *api_callback_arg = cb_arg;
+	char buf[ENTRY_BUF_MAX];
+	int len;
 	
 	ASSERT(cb_arg != NULL);
 
+	if (api_callback_arg->idx != 0) {
+		evbuffer_add(response, ",", 1);
+	}
+	len = snprintf(buf, sizeof(buf), "{\"result\":\"%u\",\"watt\":\"%lf\"}", result, watt);
+	evbuffer_add(response, buf, len);
+	api_callback_arg->idx++;
 }
 
 static void
@@ -581,7 +603,18 @@ create_hourly_other_response(
     void *cb_arg)
 {
 	api_callback_arg_t *api_callback_arg = cb_arg;
+	char buf[ENTRY_BUF_MAX];
+	int len;
 	
 	ASSERT(cb_arg != NULL);
 
+	if (api_callback_arg->idx != 0) {
+		evbuffer_add(response, ",", 1);
+	}
+	len = snprintf(buf, sizeof(buf),
+            "{\"result\":\"%u\",\"temperature\":\"%lf\",\"humidity\":\"%u\",\"intilluminance\":\"%u\"}",
+            result, temperature, humidity, illuminance);
+	evbuffer_add(response, buf, len);
+	api_callback_arg->idx++;
 }
+
