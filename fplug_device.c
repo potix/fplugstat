@@ -23,7 +23,6 @@
 #define DEFAULT_POLLING_INTERVAL "5"
 
 #define NAME_MAX_LEN 64
-#define ADDRESS_MAX_LEN 32
 
 struct bluetooth_device {
         char device_name[NAME_MAX_LEN];
@@ -291,18 +290,25 @@ fplug_device_active_device_foreach(
 }
 
 int
-fplug_device_get_stat_store(
+fplug_device_stat_store_foreach(
     fplug_device_t *fplug_device,
-    stat_store_t **stat_store,
-    const char *device_address)
+    const char *device_address,
+    struct tm *start_tm,
+    struct tm *end_tm,
+    void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned intilluminance, double rwatt, void *cb_arg),
+    void *cb_arg) 
 {
 	int i;
 	char addr[ADDRESS_MAX_LEN];
         bluetooth_device_t *bluetooth_device;
+	time_t start;
+	time_t end;
 
 	if (fplug_device == NULL ||
 	    stat_store == NULL ||
-	    device_address == NULL) {
+	    device_address == NULL ||
+	    start_tm == NULL ||
+	    end_tm == NULL) {
 		return EINVAL;
 	}
 
@@ -310,7 +316,10 @@ fplug_device_get_stat_store(
 	for (i = 0; i < fplug_device->max_device; i++) {
                 bluetooth_device = &fplug_device->bluetooth_device[i];
 		if (bluetooth_device->connected && strcmp(bluetooth_device->device_address, addr) == 0) {
-			*stat_store = bluetooth_device->stat_store;
+			if (stat_store_stat_foreach(bluetooth_device->stat_store, mktime(start_tm), mktime(end_tm), foreach_cb, cb_arg)) {
+				LOG(LOG_ERR, "failed in stat store foreach"); 
+				return 1;
+			}
 			return 0;
 		}
         }
@@ -444,7 +453,7 @@ fplug_device_set_datetime(
 
 /* 24時間分の電力の積算値取得 */
 int
-fplug_device_get_hourly_power_total(
+fplug_device_hourly_power_total_foreach(
     fplug_device_t *fplug_device,
     const char *device_address,
     struct tm *start_tm,
@@ -541,7 +550,7 @@ fplug_device_get_hourly_power_total(
 
 /* 24時間分の温度、湿度、照度を取得 */
 int
-fplug_device_get_hourly_other(
+fplug_device_hourly_other_foreach(
     fplug_device_t *fplug_device,
     const char *device_address,
     struct tm *start_tm,

@@ -133,6 +133,8 @@ stat_store_stat_add(
 int
 stat_store_stat_foreach(
     stat_store_t *stat_store,
+    time_t start,
+    time_t end,
     void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned intilluminance, double rwatt, void *cb_arg),
     void *cb_arg)
 {
@@ -146,12 +148,16 @@ stat_store_stat_foreach(
 	if (stat_store->full) {
 		for (i = stat_store->current_point + 1; i < stat_store->max_point; i++) {
 			stat_value = &stat_store->stat_value[i];
-			foreach_cb(stat_value->stat_time, stat_value->temperature, stat_value->humidity, stat_value->illuminance, stat_value->rwatt, cb_arg);
+			if (start <= stat_value->stat_time && stat_value->stat_time <= end) {
+				foreach_cb(stat_value->stat_time, stat_value->temperature, stat_value->humidity, stat_value->illuminance, stat_value->rwatt, cb_arg);
+			}
 		}
 	}
 	for (i = 0; i < stat_store->current_point; i++) {
 		stat_value = &stat_store->stat_value[i];
-		foreach_cb(stat_value->stat_time, stat_value->temperature, stat_value->humidity, stat_value->illuminance, stat_value->rwatt, cb_arg);
+		if (start <= stat_value->stat_time && stat_value->stat_time <= end) {
+			foreach_cb(stat_value->stat_time, stat_value->temperature, stat_value->humidity, stat_value->illuminance, stat_value->rwatt, cb_arg);
+		}
 	}
 
 	return 0;

@@ -4,6 +4,8 @@
 #include <time.h>
 #include "stat_store.h"
 
+#define ADDRESS_MAX_LEN 32
+
 typedef struct fplug_device fplug_device_t;
 
 /*
@@ -34,15 +36,13 @@ int fplug_device_active_device_foreach(fplug_device_t *fplug_device,
 /*
  * fplugデバイスのアドレスからstat_storeを取得する 
  */
-int fplug_device_get_stat_store(fplug_device_t *fplug_device,
-     stat_store_t **stat_store, const char *device_address);
-
+int fplug_device_stat_store_foreach(fplug_device_t *fplug_device, const char *device_address, struct tm *start_tm, struct tm *end_tm,
+    void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned intilluminance, double rwatt, void *cb_arg), void *cb_arg);
 /*
  * fplugデバイスの初期化
  */
 int fplug_device_reset(fplug_device_t *fplug_device, const char *device_address);
 	
-
 /*
  * fplugデバイスの日時設定
  */
@@ -51,13 +51,13 @@ int fplug_device_set_datetime(fplug_device_t *fplug_device, const char *device_a
 /*
  * fplugデバイスの電力の積算値取得 時間毎
  */
-int fplug_device_get_hourly_power_total(fplug_device_t *fplug_device, const char *device_address, struct tm *start_tm,
+int fplug_device_hourly_power_total_foreach(fplug_device_t *fplug_device, const char *device_address, struct tm *start_tm,
      void (*foreach_cb)(unsigned char result, double watt, void *cb_arg), void *cb_arg);
 
 /*
  * fplugデバイスの電力以外の情報取得 時間毎
  */
-int fplug_device_get_hourly_other(fplug_device_t *fplug_device, const char *device_address, struct tm *start_tm,
+int fplug_device_hourly_other_foreach(fplug_device_t *fplug_device, const char *device_address, struct tm *start_tm,
     void (*foreach_cb)(unsigned char result, double temperature, unsigned int humidity, unsigned int illuminance, void *cb_arg), void *cb_arg);
 
 #endif
