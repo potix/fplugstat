@@ -189,8 +189,8 @@ enl_request_frame_get(
 int
 enl_response_frame_init(
     enl_response_frame_info_t *enl_response_frame_info,
-    unsigned char **frame,
-    size_t *frame_len)
+    unsigned char **buffer,
+    size_t *buffer_len)
 {
 
 	if (enl_response_frame_info == NULL || 
@@ -213,7 +213,7 @@ enl_response_frame_add(
     size_t *buffer_len)
 {
 	enl_frame_t *ef;
-	unsigned char *latest_pdc;
+	unsigned char latest_pdc;
 
 	if (enl_response_frame_info == NULL || 
 	    buffer == NULL || 
@@ -222,7 +222,7 @@ enl_response_frame_add(
 		return EINVAL;
 	}
 	if (enl_response_frame_info->frame_len == ENL_REGULATION_FRAME_COMMON_LEN) {
-		ef = (enl_frame_t *)enl_request_frame_info->buffer;
+		ef = (enl_frame_t *)enl_response_frame_info->buffer;
 		enl_response_frame_info->opc = ef->ef_edata.opc;
 	}
 	if (enl_response_frame_info->opc != 0) {
@@ -259,7 +259,7 @@ enl_response_frame_get_tid(
 		return EINVAL;
 	}
 
-	ef = (enl_frame_t *)enl_request_frame_info->buffer;
+	ef = (enl_frame_t *)enl_response_frame_info->buffer;
 	*tid = ef->ef_hdr.tid;
 
 	return 0;
@@ -281,7 +281,7 @@ enl_response_frame_get_seoj(
 		return EINVAL;
 	}
 
-	ef = (enl_frame_t *)enl_request_frame_info->buffer;
+	ef = (enl_frame_t *)enl_response_frame_info->buffer;
 	*seojcg = ef->ef_edata.seojcg;
 	*seojcc = ef->ef_edata.seojcc;
 	*seojic = ef->ef_edata.seojic;
@@ -290,7 +290,7 @@ enl_response_frame_get_seoj(
 }
 
 int
-enl_response_frame_get_seoj(
+enl_response_frame_get_deoj(
     enl_response_frame_info_t *enl_response_frame_info,
     unsigned char *deojcg,
     unsigned char *deojcc,
@@ -305,7 +305,7 @@ enl_response_frame_get_seoj(
 		return EINVAL;
 	}
 
-	ef = (enl_frame_t *)enl_request_frame_info->buffer;
+	ef = (enl_frame_t *)enl_response_frame_info->buffer;
 	*deojcg = ef->ef_edata.deojcg;
 	*deojcc = ef->ef_edata.deojcc;
 	*deojic = ef->ef_edata.deojic;
@@ -316,7 +316,8 @@ enl_response_frame_get_seoj(
 int
 enl_response_frame_get_esv(
     enl_response_frame_info_t *enl_response_frame_info,
-    unsigned char *esv);
+    unsigned char *esv)
+{
 	enl_frame_t *ef;
 
 	if (enl_response_frame_info == NULL || 
@@ -324,7 +325,7 @@ enl_response_frame_get_esv(
 		return EINVAL;
 	}
 
-	ef = (enl_frame_t *)enl_request_frame_info->buffer;
+	ef = (enl_frame_t *)enl_response_frame_info->buffer;
 	*esv = ef->ef_edata.esv;
 
 	return 0;
@@ -342,7 +343,7 @@ enl_response_frame_get_opc(
 		return EINVAL;
 	}
 
-	ef = (enl_frame_t *)enl_request_frame_info->buffer;
+	ef = (enl_frame_t *)enl_response_frame_info->buffer;
 	*opc = ef->ef_edata.opc;
 
 	return 0;
@@ -358,19 +359,21 @@ enl_response_frame_get_data(
     unsigned char **edt_ptr)
 {
 	enl_frame_t *ef;
-	unsigned char handle_ptr;
-	unsigned char latest_epc;
-	unsigned char latest_pdc;
-	unsigned char *latest_edt_ptr;
+	unsigned char *handle_ptr;
+	unsigned char latest_epc = 0;
+	unsigned char latest_pdc = 0;
+	unsigned char *latest_edt_ptr = NULL;
+	int i;
 
 	if (enl_response_frame_info == NULL || 
 	    epc == NULL ||
 	    pdc == NULL ||
-	    edt_ptr == NULL)
+	    edt_ptr == NULL ||
+	    idx == 0) {
 		return EINVAL;
 	}
 
-	ef = (enl_frame_t *)enl_request_frame_info->buffer;
+	ef = (enl_frame_t *)enl_response_frame_info->buffer;
 	if (idx > ef->ef_edata.opc) {
 		return ENOENT;
 	}
@@ -386,7 +389,7 @@ enl_response_frame_get_data(
 	*pdc = latest_pdc;
 	*edt_ptr = latest_edt_ptr;
 
-	retirn 0;
+	return 0;
 }
 
 int
@@ -402,8 +405,8 @@ enl_request_any_frame_init(
 	}
 
 	// frameの初期化
-	memset(enl_request_frame_info->buffer, 0, ENL_ANY_FRAME_COMMON_LEN);
-	enl_request_any_frame_info->frame_len = ENL_ANY_FRAME_COMMON_LEN + edata;
+	memset(enl_request_any_frame_info->buffer, 0, ENL_ANY_FRAME_COMMON_LEN);
+	enl_request_any_frame_info->frame_len = ENL_ANY_FRAME_COMMON_LEN + edata_len;
 	ef_hdr = (enl_frame_hdr_t *)enl_request_any_frame_info->buffer;
 	ef_hdr->ehd1 = 0x10;
 	ef_hdr->ehd2 = 0x82;
@@ -458,7 +461,7 @@ enl_response_any_frame_init(
 
 	enl_response_any_frame_info->frame_len = ENL_ANY_FRAME_COMMON_LEN + edata_len;
 	enl_response_any_frame_info->edata_len = edata_len;
-	*buffer = enl_response_frame_info->buffer;
+	*buffer = enl_response_any_frame_info->buffer;
 	*buffer_len = enl_response_any_frame_info->frame_len;
 
 	return 0;
@@ -476,7 +479,7 @@ enl_response_any_frame_get_tid(
 		return EINVAL;
 	}
 
-	ef_hdr = (enl_frame_hdr_t *)enl_request_frame_info->buffer;
+	ef_hdr = (enl_frame_hdr_t *)enl_response_any_frame_info->buffer;
 	*tid = ef_hdr->tid;
 
 	return 0;

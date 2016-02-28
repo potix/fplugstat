@@ -1,6 +1,7 @@
 #ifndef FPLUG_DEVICE_H
 #define FPLUG_DEVICE_H
 
+#include <time.h>
 #include "stat_store.h"
 
 typedef struct fplug_device fplug_device_t;
