@@ -7,14 +7,17 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <time.h>
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/buffer.h>
+#include <event2/keyvalq_struct.h>
 
 #include "common_macros.h"
 #include "common_define.h"
 #include "logger.h"
 #include "string_util.h"
+#include "time_util.h"
 #include "config.h"
 #include "fplug_device.h"
 #include "http.h"
@@ -64,7 +67,7 @@ struct api_callback_arg {
 typedef struct api_callback_arg api_callback_arg_t;
 
 static void default_cb(struct evhttp_request *req, void *arg);
-static int api_cb(struct evhttp_request *req, const char *decoded_path,
+static int api_cb(struct evhttp_request *req, const char *decoded_path, enum evhttp_cmd_type cmd_type,
     http_server_t *http_server, int *status_code, const char **reason);
 static void create_active_device_response(const char *device_name, const char *device_address, void *cb_arg);
 static void create_stat_store_response(time_t stat_time, double temperature,
@@ -275,7 +278,7 @@ default_cb(
 		}
 		// api handling
 		evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json" );
-		if (api_cb(req, evhttp_request_get_command(req), decoded_path, http_server, &status_code, &reason)) {
+		if (api_cb(req, decoded_path, evhttp_request_get_command(req), http_server, &status_code, &reason)) {
 			error = 1;
 		}
 		goto last;
@@ -386,7 +389,7 @@ static int
 api_cb(
     struct evhttp_request *req,
     const char *decoded_path,
-    enum evhttp_cmd_type cmd_type;
+    enum evhttp_cmd_type cmd_type,
     http_server_t *http_server,
     int *error_status_code,
     const char **error_reason)
@@ -402,14 +405,12 @@ api_cb(
 	struct evbuffer *response = NULL;
 	api_callback_arg_t api_callback_arg;
 	time_t default_start;
-	struct tm start_tm:
+	struct tm start_tm;
 	time_t default_end;
-	struct tm end_tm:
+	struct tm end_tm;
 	
 	/* 初期化 */
 	address[0] = '\0';
-	start[0] = '\0';
-	end[0] = '\0';
 	default_start = 0;
 	default_end = time(NULL);
 	localtime_r(&default_start, &start_tm);
@@ -422,7 +423,7 @@ api_cb(
 		tmp = malloc(postbuf_len + 1);
 		memcpy(tmp, evbuffer_pullup(postbuf, -1), postbuf_len);
 		tmp[postbuf_len] = '\0';
-		evhttp_parse_query_str(tmp, &hdr_qa);
+		evhttp_parse_query_str(tmp, &hdr_qs);
 		if ((var = evhttp_find_header(&hdr_qs, "address")) != NULL) {
 			strlcpy(address, var, sizeof(address));
 		}
@@ -437,9 +438,9 @@ api_cb(
 
 	/* response buffer 作成 */
 	if ((response = evbuffer_new()) == NULL) {
-		LOG_ERR(LOG_INFO, "failed in memory allocate of response buffer");
-		*status_code = HTTP_INTERNAL;
-		*reason = "failed in memory allocate of response buffer";
+		LOG(LOG_ERR, "failed in memory allocate of response buffer");
+		*error_status_code = HTTP_INTERNAL;
+		*error_reason = "failed in memory allocate of response buffer";
 		error = 1;
 		goto last;
 	}
@@ -453,9 +454,9 @@ api_cb(
 	if (cmd_type == EVHTTP_REQ_GET && strcmp(&decoded_path[api_url_path_len], API_DEVICIES_URL) == 0) {
 		evbuffer_add(response, "[", 1);
 		if (fplug_device_active_device_foreach(http_server->fplug_device, create_active_device_response, &api_callback_arg)) {
-			LOG_ERR(LOG_INFO, "failed in active device foreach");
-			*status_code = HTTP_INTERNAL;
-			*reason = "failed in active device foreach";
+			LOG(LOG_ERR, "failed in active device foreach");
+			*error_status_code = HTTP_INTERNAL;
+			*error_reason = "failed in active device foreach";
 			error = 1;
 			goto last;
 		}
@@ -463,10 +464,10 @@ api_cb(
 		evhttp_send_reply(req, 200, "OK", response);
 	} else if (cmd_type == EVHTTP_REQ_POST && strcmp(&decoded_path[api_url_path_len], API_DEVICIE_REALTIME_URL) == 0) {
 		evbuffer_add(response, "[", 1);
-		if (fplug_device_stat_store_foreach(http_server->fplug_device, address, &start_tm, &end_tm create_stat_store_response, &api_callback_arg)) {
-			LOG_ERR(LOG_INFO, "failed in stat store foreach");
-			*status_code = HTTP_INTERNAL;
-			*reason = "failed in stat store foreach";
+		if (fplug_device_stat_store_foreach(http_server->fplug_device, address, &start_tm, &end_tm, create_stat_store_response, &api_callback_arg)) {
+			LOG(LOG_ERR, "failed in stat store foreach");
+			*error_status_code = HTTP_INTERNAL;
+			*error_reason = "failed in stat store foreach";
 			error = 1;
 			goto last;
 		}
@@ -475,9 +476,9 @@ api_cb(
 	} else if (cmd_type == EVHTTP_REQ_POST && strcmp(&decoded_path[api_url_path_len], API_DEVICIE_HOURLY_POWER_TOTAL_URL) == 0) {
 		evbuffer_add(response, "[", 1);
 		if (fplug_device_hourly_power_total_foreach(http_server->fplug_device, address, &start_tm, create_hourly_power_total_response, &api_callback_arg)) {
-			LOG_ERR(LOG_INFO, "failed in hourly power total foreach");
-			*status_code = HTTP_INTERNAL;
-			*reason = "failed in hourly power total foreach";
+			LOG(LOG_ERR, "failed in hourly power total foreach");
+			*error_status_code = HTTP_INTERNAL;
+			*error_reason = "failed in hourly power total foreach";
 			error = 1;
 			goto last;
 		}
@@ -486,17 +487,17 @@ api_cb(
 	} else if (cmd_type == EVHTTP_REQ_POST && strcmp(&decoded_path[api_url_path_len], API_DEVICIE_HOURLY_OTHER_URL) == 0) {
 		evbuffer_add(response, "[", 1);
 		if (fplug_device_hourly_other_foreach(http_server->fplug_device, address, &start_tm, create_hourly_other_response, &api_callback_arg)) {
-			LOG_ERR(LOG_INFO, "failed in hourly power total foreach");
-			*status_code = HTTP_INTERNAL;
-			*reason = "failed in hourly power total foreach";
+			LOG(LOG_ERR, "failed in hourly power total foreach");
+			*error_status_code = HTTP_INTERNAL;
+			*error_reason = "failed in hourly power total foreach";
 			error = 1;
 			goto last;
 		}
 		evbuffer_add(response, "]", 1);
 		evhttp_send_reply(req, 200, "OK", response);
 	} else if (cmd_type == EVHTTP_REQ_POST && strcmp(&decoded_path[api_url_path_len], API_DEVICIE_RESET_URL) == 0) {
-		if (fplug_device_reset(fplug_device_t *fplug_device, const char *device_address)) {
-			LOG_ERR(LOG_INFO, "failed in reset");
+		if (fplug_device_reset(http_server->fplug_device, address)) {
+			LOG(LOG_ERR, "failed in reset");
 			*error_status_code = HTTP_INTERNAL;
 			*error_reason = "failed in reset";
 			error = 1;
@@ -505,7 +506,7 @@ api_cb(
 		evhttp_send_reply(req, 200, "OK", NULL);
 	} else if (cmd_type == EVHTTP_REQ_POST && strcmp(&decoded_path[api_url_path_len], API_DEVICIE_DATETIME_URL) == 0) {
 		if (fplug_device_set_datetime(http_server->fplug_device, address)) {
-			LOG_ERR(LOG_INFO, "failed in set datetime");
+			LOG(LOG_ERR, "failed in set datetime");
 			*error_status_code = HTTP_INTERNAL;
 			*error_reason = "failed in set datetime";
 			error = 1;
@@ -513,9 +514,9 @@ api_cb(
 		}
 		evhttp_send_reply(req, 200, "OK", NULL);
 	} else {
-		LOG_ERR(LOG_INFO, "unsupported api: method = %d, url = %s", )
-		*status_code = HTTP_NOTFOUND;
-		*reason = "{ \"result\":\"failed\", \"reason\":\"unsupported api\" }";
+		LOG(LOG_ERR, "unsupported api: method = %d, url = %s", cmd_type, decoded_path);
+		*error_status_code = HTTP_NOTFOUND;
+		*error_reason = "{ \"result\":\"failed\", \"reason\":\"unsupported api\" }";
 		error = 1;
 		goto last;
 	}
@@ -542,10 +543,10 @@ create_active_device_response(
 	ASSERT(cb_arg != NULL);
 
 	if (api_callback_arg->idx != 0) {
-		evbuffer_add(response, ",", 1);
+		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
 	len = snprintf(buf, sizeof(buf), "{\"name\":\"%s\",\"address\":\"%s\"}", device_name, device_address);
-	evbuffer_add(response, buf, len);
+	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;
 }
 
@@ -565,12 +566,12 @@ create_stat_store_response(
 	ASSERT(cb_arg != NULL);
 
 	if (api_callback_arg->idx != 0) {
-		evbuffer_add(response, ",", 1);
+		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
 	len = snprintf(buf, sizeof(buf),
             "{\"temperature\":\"%lf\",\"humidity\":\"%u\",\"intilluminance\":\"%u\",\"rwatt\":\"%lf\"}",
             temperature, humidity, illuminance, rwatt);
-	evbuffer_add(response, buf, len);
+	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;
 }
 
@@ -587,10 +588,10 @@ create_hourly_power_total_response(
 	ASSERT(cb_arg != NULL);
 
 	if (api_callback_arg->idx != 0) {
-		evbuffer_add(response, ",", 1);
+		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
 	len = snprintf(buf, sizeof(buf), "{\"result\":\"%u\",\"watt\":\"%lf\"}", result, watt);
-	evbuffer_add(response, buf, len);
+	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;
 }
 
@@ -609,12 +610,12 @@ create_hourly_other_response(
 	ASSERT(cb_arg != NULL);
 
 	if (api_callback_arg->idx != 0) {
-		evbuffer_add(response, ",", 1);
+		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
 	len = snprintf(buf, sizeof(buf),
             "{\"result\":\"%u\",\"temperature\":\"%lf\",\"humidity\":\"%u\",\"intilluminance\":\"%u\"}",
             result, temperature, humidity, illuminance);
-	evbuffer_add(response, buf, len);
+	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;
 }
 

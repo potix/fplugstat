@@ -1,18 +1,21 @@
+
 PROG = fplugstatd
-OBJS = main.o fplug_device.o stat_store.o echonet_lite.o config.o string_util.o logger.o http.o
+OBJS = main.o fplug_device.o stat_store.o echonet_lite.o config.o string_util.o logger.o http.o 
 CC = gcc
 CFLAGS = -Wall -O2
 LDFLAGS = -L/lib -L/lib/x86_64-linux-gnu -L/lib64 -L/usr/lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib64 -levent -lbluetooth -lpthread
 
 .SUFFIXES: .c .o
 
+.PHONY: all
 all: clean $(PROG)
 
 $(PROG): $(OBJS) 
-	$(CC) -o $(PROG) $^ $(LDFLAGS) 
+	$(CC) -o $(PROG) $^  $(LDFLAGS) 
+
 .c.o:
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $< 
 
 .PHONY: clean
 clean:
-	rm -rf *.o fplugstatd
+	rm -rf *.o */*.o fplugstatd

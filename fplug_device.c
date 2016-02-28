@@ -301,11 +301,8 @@ fplug_device_stat_store_foreach(
 	int i;
 	char addr[ADDRESS_MAX_LEN];
         bluetooth_device_t *bluetooth_device;
-	time_t start;
-	time_t end;
 
 	if (fplug_device == NULL ||
-	    stat_store == NULL ||
 	    device_address == NULL ||
 	    start_tm == NULL ||
 	    end_tm == NULL) {
