@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <netdb.h>
+#define __USE_XOPEN
 #include <time.h>
 #include <event2/event.h>
 #include <event2/http.h>
@@ -17,7 +18,6 @@
 #include "common_define.h"
 #include "logger.h"
 #include "string_util.h"
-#include "time_util.h"
 #include "config.h"
 #include "fplug_device.h"
 #include "http.h"
