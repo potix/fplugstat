@@ -611,7 +611,7 @@ fplug_device_hourly_other_foreach(
 		return 1;	
 	}
 	/* レスポンスフレームの読み出し */
-	if (enl_response_any_frame_init(&bluetooth_device->enl_response_any_frame_info, 74, &response_buffer, &response_buffer_len)) {
+	if (enl_response_any_frame_init(&bluetooth_device->enl_response_any_frame_info, 122, &response_buffer, &response_buffer_len)) {
 		LOG(LOG_ERR, "failed in initalize echonet lite frame of response of hourly other");
 		return 1;
 	}
