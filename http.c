@@ -411,6 +411,7 @@ api_cb(
 	api_callback_arg_t api_callback_arg;
 	time_t default_start;
 	struct tm start_tm;
+	int start_init = 0;
 	time_t default_end;
 	struct tm end_tm;
 	
@@ -438,7 +439,11 @@ api_cb(
 			strlcpy(address, var, sizeof(address));
 		}
 		if ((var = evhttp_find_header(&hdr_qs, "start")) != NULL) {
-			strptime(var, "%Y%m%d%H%M%S", &start_tm);
+			if (strcmp(var, "init") == 0) {
+				start_init = 1;
+			} else {
+				strptime(var, "%Y%m%d%H%M%S", &start_tm);
+			}
 		}
 		if ((var = evhttp_find_header(&hdr_qs, "end")) != NULL) {
 			strptime(var, "%Y%m%d%H%M%S", &end_tm);
@@ -496,12 +501,22 @@ api_cb(
 		evhttp_send_reply(req, 200, "OK", response);
 	} else if (cmd_type == EVHTTP_REQ_POST && strcmp(&decoded_path[api_url_path_len], API_DEVICIE_HOURLY_OTHER_URL) == 0) {
 		evbuffer_add(response, "[", 1);
-		if (fplug_device_hourly_other_foreach(http_server->fplug_device, address, &start_tm, create_hourly_other_response, &api_callback_arg)) {
-			LOG(LOG_ERR, "failed in hourly power total foreach");
-			*error_status_code = HTTP_INTERNAL;
-			*error_reason = "failed in hourly power total foreach";
-			error = 1;
-			goto last;
+		if (start_init) {
+			if (fplug_device_hourly_other_foreach(http_server->fplug_device, address, NULL, create_hourly_other_response, &api_callback_arg)) {
+				LOG(LOG_ERR, "failed in hourly power total foreach");
+				*error_status_code = HTTP_INTERNAL;
+				*error_reason = "failed in hourly power total foreach";
+				error = 1;
+				goto last;
+			}
+		} else {
+			if (fplug_device_hourly_other_foreach(http_server->fplug_device, address, &start_tm, create_hourly_other_response, &api_callback_arg)) {
+				LOG(LOG_ERR, "failed in hourly power total foreach");
+				*error_status_code = HTTP_INTERNAL;
+				*error_reason = "failed in hourly power total foreach";
+				error = 1;
+				goto last;
+			}
 		}
 		evbuffer_add(response, "]", 1);
 		evhttp_send_reply(req, 200, "OK", response);
