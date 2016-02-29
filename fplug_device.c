@@ -67,13 +67,12 @@ struct fplug_set_datetime_response_frame {
 typedef struct fplug_set_datetime_response_frame fplug_set_datetime_response_frame_t;
 
 struct fplug_hourly_power_total_data_edt {
-	unsigned char result;
 	unsigned short watt;
+	unsigned char reliability;
 }__attribute__((__packed__));
 typedef struct fplug_hourly_power_total_data_edt fplug_hourly_power_total_data_edt_t;
 
 struct fplug_hourly_other_data_edt {
-	unsigned char result;
 	unsigned short temperature;
 	unsigned char humidity;
 	unsigned char illuminance;
@@ -463,7 +462,7 @@ fplug_device_hourly_power_total_foreach(
     fplug_device_t *fplug_device,
     const char *device_address,
     struct tm *start_tm,
-    void (*foreach_cb)(unsigned char result, double watt, void *cb_arg),
+    void (*foreach_cb)(double watt, unsigned char reliability, void *cb_arg),
     void *cb_arg)
 {
 	bluetooth_device_t *bluetooth_device;
@@ -535,6 +534,7 @@ fplug_device_hourly_power_total_foreach(
 	}
 	/* レスポンスの取得 */
 	enl_response_any_frame_get_edata(&bluetooth_device->enl_response_any_frame_info, &response_edata_ptr, NULL);
+	/* レスポンスチェック */
 	if (past) {
 		if (*response_edata_ptr != 0x96) {
 			LOG(LOG_ERR, "invalid response hourly power total (%d)", *response_edata_ptr);
@@ -546,9 +546,13 @@ fplug_device_hourly_power_total_foreach(
 			return 1;
 		}
 	}
-	fplug_hourly_power_total_data_edt = (fplug_hourly_power_total_data_edt_t *)(response_edata_ptr + 1);
+	if (*(response_edata_ptr + 1) == 0x01) {
+		LOG(LOG_ERR, "failed in get hourly other data");
+		return 1;
+	}
+	fplug_hourly_power_total_data_edt = (fplug_hourly_power_total_data_edt_t *)(response_edata_ptr + 2);
 	for (i = 0; i < 24; i++) {
-		foreach_cb(fplug_hourly_power_total_data_edt->result, ((int)fplug_hourly_power_total_data_edt->watt)/10, cb_arg);
+		foreach_cb(((int)fplug_hourly_power_total_data_edt->watt)/10, fplug_hourly_power_total_data_edt->reliability, cb_arg);
 		fplug_hourly_power_total_data_edt++;
 	}
 	
@@ -561,7 +565,7 @@ fplug_device_hourly_other_foreach(
     fplug_device_t *fplug_device,
     const char *device_address,
     struct tm *start_tm,
-    void (*foreach_cb)(unsigned char result, double temperature, unsigned int humidity, unsigned int illuminance, void *cb_arg),
+    void (*foreach_cb)(double temperature, unsigned int humidity, unsigned int illuminance, void *cb_arg),
     void *cb_arg)
 {
 	bluetooth_device_t *bluetooth_device;
@@ -617,14 +621,18 @@ fplug_device_hourly_other_foreach(
 	}
 	/* レスポンスの取得 */
 	enl_response_any_frame_get_edata(&bluetooth_device->enl_response_any_frame_info, &response_edata_ptr, NULL);
+	/* レスポンスチェック */
 	if (*response_edata_ptr != 0x97) {
 		LOG(LOG_ERR, "invalid response hourly other (%d)", *response_edata_ptr);
 		return 1;
 	}
-	fplug_hourly_other_data_edt = (fplug_hourly_other_data_edt_t *)(response_edata_ptr + 1);
+	if (*(response_edata_ptr + 1) == 0x01) {
+		LOG(LOG_ERR, "failed in get hourly other data");
+		return 1;
+	}
+	fplug_hourly_other_data_edt = (fplug_hourly_other_data_edt_t *)(response_edata_ptr + 2);
 	for (i = 0; i < 24; i++) {
-		foreach_cb(fplug_hourly_other_data_edt->result, ((int)fplug_hourly_other_data_edt->temperature)/10,
-		    fplug_hourly_other_data_edt->humidity, fplug_hourly_other_data_edt->illuminance, cb_arg);
+		foreach_cb(((int)fplug_hourly_other_data_edt->temperature)/10, fplug_hourly_other_data_edt->humidity, fplug_hourly_other_data_edt->illuminance, cb_arg);
 		fplug_hourly_other_data_edt++;
 	}
 	

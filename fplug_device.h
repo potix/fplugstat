@@ -52,12 +52,12 @@ int fplug_device_set_datetime(fplug_device_t *fplug_device, const char *device_a
  * fplugデバイスの電力の積算値取得 時間毎
  */
 int fplug_device_hourly_power_total_foreach(fplug_device_t *fplug_device, const char *device_address, struct tm *start_tm,
-     void (*foreach_cb)(unsigned char result, double watt, void *cb_arg), void *cb_arg);
+     void (*foreach_cb)(double watt, unsigned char reliability, void *cb_arg), void *cb_arg);
 
 /*
  * fplugデバイスの電力以外の情報取得 時間毎
  */
 int fplug_device_hourly_other_foreach(fplug_device_t *fplug_device, const char *device_address, struct tm *start_tm,
-    void (*foreach_cb)(unsigned char result, double temperature, unsigned int humidity, unsigned int illuminance, void *cb_arg), void *cb_arg);
+    void (*foreach_cb)(double temperature, unsigned int humidity, unsigned int illuminance, void *cb_arg), void *cb_arg);
 
 #endif

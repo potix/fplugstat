@@ -41,12 +41,12 @@
 #define DEFAULT_HTTP_PORT "80"
 #endif
 
-#define API_DEVICIES_URL                   "/api/devicies"
-#define API_DEVICIE_REALTIME_URL           "/api/device/realtime/"
-#define API_DEVICIE_HOURLY_POWER_TOTAL_URL "/api/device/hourly/power/total"
-#define API_DEVICIE_HOURLY_OTHER_URL       "/api/device/hourly/other"
-#define API_DEVICIE_RESET_URL              "/api/device/reset"
-#define API_DEVICIE_DATETIME_URL           "/api/device/datetime"
+#define API_DEVICIES_URL                   "devicies"
+#define API_DEVICIE_REALTIME_URL           "device/realtime"
+#define API_DEVICIE_HOURLY_POWER_TOTAL_URL "device/hourly/power/total"
+#define API_DEVICIE_HOURLY_OTHER_URL       "device/hourly/other"
+#define API_DEVICIE_RESET_URL              "device/reset"
+#define API_DEVICIE_DATETIME_URL           "device/datetime"
 
 struct http_server {
 	struct evhttp *evhttp;
@@ -75,9 +75,8 @@ static int api_cb(struct evhttp_request *req, const char *decoded_path, enum evh
 static void create_active_device_response(const char *device_name, const char *device_address, void *cb_arg);
 static void create_stat_store_response(time_t stat_time, double temperature,
    unsigned int humidity, unsigned int illuminance, double rwatt, void *cb_arg);
-static void create_hourly_power_total_response(unsigned char result, double watt, void *cb_arg);
-static void create_hourly_other_response( unsigned char result, double temperature,
-    unsigned int humidity, unsigned int illuminance, void *cb_arg);
+static void create_hourly_power_total_response(double watt, unsigned char reliability, void *cb_arg);
+static void create_hourly_other_response(double temperature, unsigned int humidity, unsigned int illuminance, void *cb_arg);
 
 content_type_map_t content_types[] = {
 	{ ".html", "text/html"       },
@@ -284,7 +283,7 @@ default_cb(
 			goto last; 
 		}
 		// api handling
-		evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json" );
+		evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
 		if (api_cb(req, decoded_path, evhttp_request_get_command(req), http_server, &status_code, &reason)) {
 			error = 1;
 		}
@@ -373,7 +372,6 @@ default_cb(
 	evhttp_send_reply(req, 200, "OK", evb);
 last:
 	if (error) {
-		evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", content_type);
 		evhttp_send_error(req, status_code, reason);
 	}
 	if (evb) {
@@ -424,7 +422,7 @@ api_cb(
 	/* 初期化 */
 	address[0] = '\0';
 	default_end = time(NULL);
-	default_start = default_end - (86400 * 31);
+	default_start = default_end - 86400;
 	localtime_r(&default_start, &start_tm);
 	localtime_r(&default_end, &end_tm);
 
@@ -526,9 +524,9 @@ api_cb(
 		}
 		evhttp_send_reply(req, 200, "OK", NULL);
 	} else {
-		LOG(LOG_ERR, "unsupported api: method = %d, url = %s", cmd_type, decoded_path);
+		LOG(LOG_ERR, "unsupported api: method = %d, url = %s, partial url = %s", cmd_type, decoded_path, &decoded_path[api_url_path_len]);
 		*error_status_code = HTTP_NOTFOUND;
-		*error_reason = "{ \"result\":\"failed\", \"reason\":\"unsupported api\" }";
+		*error_reason = "unsupported api";
 		error = 1;
 		goto last;
 	}
@@ -589,8 +587,8 @@ create_stat_store_response(
 
 static void
 create_hourly_power_total_response(
-    unsigned char result,
     double watt,
+    unsigned char reliability,
     void *cb_arg)
 {
 	api_callback_arg_t *api_callback_arg = cb_arg;
@@ -602,14 +600,13 @@ create_hourly_power_total_response(
 	if (api_callback_arg->idx != 0) {
 		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
-	len = snprintf(buf, sizeof(buf), "{\"result\":\"%u\",\"watt\":\"%lf\"}", result, watt);
+	len = snprintf(buf, sizeof(buf), "{\"reliability\":\"%u\",\"watt\":\"%lf\"}", reliability, watt);
 	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;
 }
 
 static void
 create_hourly_other_response(
-    unsigned char result,
     double temperature,
     unsigned int humidity,
     unsigned int illuminance,
@@ -625,8 +622,7 @@ create_hourly_other_response(
 		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
 	len = snprintf(buf, sizeof(buf),
-            "{\"result\":\"%u\",\"temperature\":\"%lf\",\"humidity\":\"%u\",\"intilluminance\":\"%u\"}",
-            result, temperature, humidity, illuminance);
+            "{\"temperature\":\"%lf\",\"humidity\":\"%u\",\"intilluminance\":\"%u\"}", temperature, humidity, illuminance);
 	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;
 }
