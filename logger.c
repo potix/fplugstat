@@ -3,6 +3,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <stdarg.h>
+#include <errno.h>
 
 #define MAX_FORMAT_LEN 2048
 
@@ -100,7 +101,7 @@ logger_log(const char *func, int line, int serverity, const char *format, ...)
 	if (serverity > filter_serverity) {
 		return 0;
 	} 
-	snprintf(new_format, sizeof(new_format), "%s:%d %s", func, line, format);
+	snprintf(new_format, sizeof(new_format), "%s:%d[%d] %s", func, line, errno, format);
 	va_list list;
 	va_start(list, format);
 	vsyslog(serverity, new_format, list);

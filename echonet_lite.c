@@ -111,7 +111,8 @@ enl_request_frame_init(
 	enl_frame_t *ef;
 
 	if (enl_request_frame_info == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	// frameの初期化
@@ -141,10 +142,12 @@ enl_request_frame_add(
 {
 	if (enl_request_frame_info == NULL ||
 	    (pdc > 0 && edt == NULL)) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 	if (enl_request_frame_info->frame_len + 1 + 1 + pdc >= MAX_ENL_FRAME_LEN) {
-		return ENOMEM;
+		errno = ENOMEM;
+		return 1;
 	}
 	enl_request_frame_info->buffer[enl_request_frame_info->frame_len] = epc;
 	enl_request_frame_info->frame_len++;
@@ -171,7 +174,8 @@ enl_request_frame_get(
 	if (enl_request_frame_info == NULL ||
 	    frame == NULL ||
 	    frame_len == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	ef = (enl_frame_t *)enl_request_frame_info->buffer;
@@ -196,7 +200,8 @@ enl_response_frame_init(
 	if (enl_response_frame_info == NULL || 
 	    buffer == NULL || 
 	    buffer_len == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 	enl_response_frame_info->frame_len = ENL_REGULATION_FRAME_COMMON_LEN;
 	enl_response_frame_info->epc_ready = 1;
@@ -219,7 +224,8 @@ enl_response_frame_add(
 	    buffer == NULL || 
 	    buffer_len == NULL ||
 	    enl_response_frame_info->frame_len < ENL_REGULATION_FRAME_COMMON_LEN) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 	if (enl_response_frame_info->frame_len == ENL_REGULATION_FRAME_COMMON_LEN) {
 		ef = (enl_frame_t *)enl_response_frame_info->buffer;
@@ -256,7 +262,8 @@ enl_response_frame_get_tid(
 
 	if (enl_response_frame_info == NULL || 
 	    tid == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	ef = (enl_frame_t *)enl_response_frame_info->buffer;
@@ -278,7 +285,8 @@ enl_response_frame_get_seoj(
 	    seojcg == NULL ||
 	    seojcc == NULL ||
 	    seojic == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	ef = (enl_frame_t *)enl_response_frame_info->buffer;
@@ -302,7 +310,8 @@ enl_response_frame_get_deoj(
 	    deojcg == NULL ||
 	    deojcc == NULL ||
 	    deojic == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	ef = (enl_frame_t *)enl_response_frame_info->buffer;
@@ -322,7 +331,8 @@ enl_response_frame_get_esv(
 
 	if (enl_response_frame_info == NULL || 
 	    esv == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	ef = (enl_frame_t *)enl_response_frame_info->buffer;
@@ -340,7 +350,8 @@ enl_response_frame_get_opc(
 
 	if (enl_response_frame_info == NULL || 
 	    opc == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	ef = (enl_frame_t *)enl_response_frame_info->buffer;
@@ -370,12 +381,14 @@ enl_response_frame_get_data(
 	    pdc == NULL ||
 	    edt_ptr == NULL ||
 	    idx == 0) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	ef = (enl_frame_t *)enl_response_frame_info->buffer;
 	if (idx > ef->ef_edata.opc) {
-		return ENOENT;
+		errno = ENOENT;
+		return 1;
 	}
 
 	handle_ptr = &enl_response_frame_info->buffer[ENL_REGULATION_FRAME_COMMON_LEN];
@@ -401,7 +414,8 @@ enl_request_any_frame_init(
 	enl_frame_hdr_t *ef_hdr;
 
 	if (enl_request_any_frame_info == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	// frameの初期化
@@ -428,7 +442,8 @@ enl_request_any_frame_get(
 	if (enl_request_any_frame_info == NULL ||
 	    frame == NULL ||
 	    frame_len == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	ef_hdr = (enl_frame_hdr_t *)enl_request_any_frame_info->buffer;
@@ -453,10 +468,12 @@ enl_response_any_frame_init(
 	if (enl_response_any_frame_info == NULL || 
 	    buffer == NULL || 
 	    buffer_len == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 	if (ENL_ANY_FRAME_COMMON_LEN + edata_len > MAX_ENL_FRAME_LEN) {
-		return ENOMEM;
+		errno = ENOMEM;
+		return 1;
 	}
 
 	enl_response_any_frame_info->frame_len = ENL_ANY_FRAME_COMMON_LEN + edata_len;
@@ -476,7 +493,8 @@ enl_response_any_frame_get_tid(
 
 	if (enl_response_any_frame_info == NULL || 
 	    tid == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	ef_hdr = (enl_frame_hdr_t *)enl_response_any_frame_info->buffer;
@@ -493,7 +511,8 @@ enl_response_any_frame_get_edata(
 {
 	if (enl_response_any_frame_info == NULL || 
 	    edata_ptr == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	*edata_ptr = &enl_response_any_frame_info->buffer[ENL_ANY_FRAME_COMMON_LEN];

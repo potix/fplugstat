@@ -61,6 +61,7 @@ struct content_type_map {
 	const char *extension;
 	const char *content_type;
 };
+typedef struct content_type_map content_type_map_t;
 
 struct api_callback_arg {
 	int idx;
@@ -78,7 +79,7 @@ static void create_hourly_power_total_response(unsigned char result, double watt
 static void create_hourly_other_response( unsigned char result, double temperature,
     unsigned int humidity, unsigned int illuminance, void *cb_arg);
 
-struct content_type_map content_types[] = {
+content_type_map_t content_types[] = {
 	{ ".html", "text/html"       },
 	{ ".htm",  "text/htm"        },
 	{ ".js",   "text/javascript" },
@@ -89,7 +90,6 @@ struct content_type_map content_types[] = {
 	{ ".jpeg", "image/jpeg"      },
 	{ ".txt",  "text/plain"      }
 };
-typedef struct content_type_map content_type_map_t;
 
 int
 http_server_create(
@@ -104,7 +104,10 @@ http_server_create(
 	unsigned short port;
         char resource_path[URL_PATH_MAX];
 	
-	if (http_server == NULL || event_base == NULL || config == NULL) {
+	if (http_server == NULL ||
+	    config == NULL ||
+	    event_base == NULL ||
+	    fplug_device == NULL) {
 		errno = EINVAL;
 		return 1;
 	}
@@ -146,7 +149,9 @@ fail:
 	if (evhttp) {
 		evhttp_free(evhttp);
 	}
-	free(new);	
+	if (new) {
+		free(new);	
+	}
 
 	return 1;
 }
@@ -411,6 +416,11 @@ api_cb(
 	time_t default_end;
 	struct tm end_tm;
 	
+	ASSERT(decoded_path != NULL);
+	ASSERT(http_server != NULL);
+	ASSERT(error_status_code != NULL);
+	ASSERT(error_reason != NULL);
+
 	/* 初期化 */
 	address[0] = '\0';
 	default_start = 0;

@@ -40,7 +40,8 @@ stat_store_create(
 
 	if (stat_store == NULL ||
 	    config == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	new = malloc(sizeof(stat_store_t));
@@ -87,7 +88,8 @@ stat_store_destroy(
 {
 	
 	if (stat_store == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 	
 	if (stat_store->stat_value) {
@@ -113,7 +115,8 @@ stat_store_stat_add(
 	stat_value_t *stat_value;
 
 	if (stat_store == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 	stat_value = &stat_store->stat_value[stat_store->current_point];
 	stat_value->stat_time = stat_time;  
@@ -142,7 +145,8 @@ stat_store_stat_foreach(
 	int i;
 
 	if (stat_store == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	if (stat_store->full) {

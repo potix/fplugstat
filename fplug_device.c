@@ -106,7 +106,8 @@ fplug_device_create(
 	if (fplug_device == NULL ||
 	    config == NULL ||
 	    event_base == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	new = malloc(sizeof(fplug_device_t));
@@ -114,13 +115,12 @@ fplug_device_create(
                 LOG(LOG_ERR, "faile in create fplug device");
 		goto fail;
 	}
-	memset(fplug_device, 0, sizeof(fplug_device_t));
+	memset(new, 0, sizeof(fplug_device_t));
 	new->event_base = event_base;
 	new->polling_event = evtimer_new(event_base, fplug_device_polling, new);
 	if (new->polling_event == NULL) {
                 LOG(LOG_ERR, "faile in create polling event");
                 goto fail;
-
 	}
         if (config_get_uint32(config, (uint32_t *)&new->max_device, "fplug", "maxDevice", DEFAULT_MAX_DEVICE, 1, 7)) {
                 LOG(LOG_ERR, "faile in get max device (1 to 7)");
@@ -131,12 +131,12 @@ fplug_device_create(
                 goto fail;
         }
 
-	bluetooth_device_new = malloc(sizeof(fplug_device_t) * new->max_device);
+	bluetooth_device_new = malloc(sizeof(bluetooth_device_t) * new->max_device);
 	if (bluetooth_device_new == NULL) {
                 LOG(LOG_ERR, "faile in create bluetooth device");
 		goto fail;
 	}
-	memset(bluetooth_device_new, 0, sizeof(fplug_device_t) * new->max_device);
+	memset(bluetooth_device_new, 0, sizeof(bluetooth_device_t) * new->max_device);
 	new->bluetooth_device = bluetooth_device_new;
  
 	for (i = 0; i < new->max_device; i++) {
@@ -188,7 +188,8 @@ fplug_device_connect(
 	int i;
 
 	if (fplug_device == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
         for (i = 0; i < fplug_device->max_device; i++) {
 		if (fplug_device->bluetooth_device[i].device_name[0] != '\0' &&
@@ -214,7 +215,8 @@ fplug_device_polling_start(
     fplug_device_t *fplug_device) {
 
 	if (fplug_device == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 	if (evtimer_add(fplug_device->polling_event, &fplug_device->polling_interval)) {
                 LOG(LOG_ERR, "faile in create fplug device");
@@ -228,7 +230,8 @@ fplug_device_polling_stop(
     fplug_device_t *fplug_device) {
 
 	if (fplug_device == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	evtimer_del(fplug_device->polling_event);
@@ -244,7 +247,8 @@ fplug_device_destroy(
 	bluetooth_device_t *bluetooth_device;
 
 	if (fplug_device == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
         for (i = 0; i < fplug_device->max_device; i++) {
 		bluetooth_device = &fplug_device->bluetooth_device[i];
@@ -276,7 +280,8 @@ fplug_device_active_device_foreach(
 
 	if (fplug_device == NULL ||
 	    foreach_cb == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	for (i = 0; i < fplug_device->max_device; i++) {
@@ -306,7 +311,8 @@ fplug_device_stat_store_foreach(
 	    device_address == NULL ||
 	    start_tm == NULL ||
 	    end_tm == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 
 	strlcpy(addr, device_address, sizeof(addr));
@@ -353,7 +359,8 @@ fplug_device_reset(
 
 	if (fplug_device == NULL ||
 	    device_address == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 	if (fplug_device_get_bluetooth_device(fplug_device, device_address, &bluetooth_device)) {
 		LOG(LOG_ERR, "not found bluetooth device"); 
@@ -435,7 +442,8 @@ fplug_device_set_datetime(
 
 	if (fplug_device == NULL ||
 	    device_address == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 	if (fplug_device_get_bluetooth_device(fplug_device, device_address, &bluetooth_device)) {
 		LOG(LOG_ERR, "not found bluetooth device"); 
@@ -474,7 +482,8 @@ fplug_device_hourly_power_total_foreach(
 	if (fplug_device == NULL ||
 	    device_address == NULL ||
 	    foreach_cb == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 	if (fplug_device_get_bluetooth_device(fplug_device, device_address, &bluetooth_device)) {
 		LOG(LOG_ERR, "not found bluetooth device"); 
@@ -568,7 +577,8 @@ fplug_device_hourly_other_foreach(
 	if (fplug_device == NULL ||
 	    device_address == NULL ||
 	    foreach_cb == NULL) {
-		return EINVAL;
+		errno = EINVAL;
+		return 1;
 	}
 	if (fplug_device_get_bluetooth_device(fplug_device, device_address, &bluetooth_device)) {
 		LOG(LOG_ERR, "not found bluetooth device"); 
@@ -671,10 +681,9 @@ fplug_device_get_bluetooth_device(
         char addr[ADDRESS_MAX_LEN];
 	bluetooth_device_t *btdev;
 
-        if (fplug_device == NULL ||
-            device_address == NULL) {
-                return EINVAL;
-        }
+	ASSERT(fplug_device != NULL);
+	ASSERT(device_address != NULL);
+	ASSERT(bluetooth_device != NULL);
 
         strlcpy(addr, device_address, sizeof(addr));
         for (i = 0; i < fplug_device->max_device; i++) {
@@ -782,7 +791,7 @@ bluetooth_device_realtime_stat(
 	now = time(NULL);
 	for (i = 0; i < NELEMS(stat_types); i++) {
 		// リクエストの書き込み
-		if (bluetooth_device_write_request_frame(bluetooth_device, i)) {
+		if (bluetooth_device_write_request_frame(bluetooth_device, stat_types[i])) {
 			LOG(LOG_ERR, "failed in make echonet lite request frame (%d)", i);
 			error++;
 			continue;
@@ -808,7 +817,7 @@ bluetooth_device_realtime_stat(
 		}
 		LOG(LOG_DEBUG, "type %d: esv = %u, opc = %u", esv, opc);
 		enl_response_frame_get_data(&bluetooth_device->enl_response_frame_info, 1, &epc, &pdc, &edt_ptr);
-		switch (i) {
+		switch (stat_types[i]) {
 		case TEMPERATURE:
 			if (pdc < 2) {
 				LOG(LOG_ERR, "unkown value length (%d: len = %d)", i, pdc);
