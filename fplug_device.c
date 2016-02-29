@@ -88,7 +88,7 @@ static int fplug_device_get_bluetooth_device(fplug_device_t *fplug_device,
 static void fplug_device_polling(evutil_socket_t fd, short events, void *arg);
 static int bluetooth_device_realtime_stat(bluetooth_device_t *bluetooth_device);
 static int bluetooth_device_write_request_frame(bluetooth_device_t *bluetooth_device, int type);
-static int bluetooth_device_read_response_frame(bluetooth_device_t *bluetooth_device);
+static int bluetooth_device_read_response_frame(bluetooth_device_t *bluetooth_device, int type);
 static int device_write_request(int sd, unsigned char *frame, size_t frame_len);
 static int device_read_response(int sd, unsigned char *buffer, size_t buffer_len);
 
@@ -755,6 +755,10 @@ fplug_device_polling(
 
 	LOG(LOG_DEBUG, "polling");
 
+	if (evtimer_add(fplug_device->polling_event, &fplug_device->polling_interval)) {
+                LOG(LOG_ERR, "faile in create fplug device");
+	}
+
 	for (i = 0; i < fplug_device->max_device; i++) {
                 bluetooth_device = &fplug_device->bluetooth_device[i];
 		if (bluetooth_device->connected) {
@@ -784,8 +788,6 @@ bluetooth_device_realtime_stat(
 	unsigned char *edt_ptr;
 	unsigned short v;
 	
-
-
 	ASSERT(bluetooth_device != NULL);
 
 	now = time(NULL);
@@ -797,7 +799,7 @@ bluetooth_device_realtime_stat(
 			continue;
 		}
 		// 応答の読み込み
-		if (bluetooth_device_read_response_frame(bluetooth_device)) {
+		if (bluetooth_device_read_response_frame(bluetooth_device, stat_types[i])) {
 			LOG(LOG_ERR, "failed in make echonet lite response frame (%d)", stat_types[i]);
 			error++;
 			continue;
@@ -948,7 +950,8 @@ bluetooth_device_write_request_frame(
 
 static int
 bluetooth_device_read_response_frame(
-    bluetooth_device_t *bluetooth_device)
+    bluetooth_device_t *bluetooth_device,
+    int type)
 {
 	unsigned char *response_buffer;
 	size_t response_buffer_len;
@@ -974,6 +977,18 @@ bluetooth_device_read_response_frame(
 			return 1;
 		}
 	}
+	if (type == HUMIDITY) {
+		/*
+		 * device bug workaround
+		 * pdc == 1, but response two byte
+		 */ 
+		LOG(LOG_DEBUG, "workaround read a byte");
+		unsigned char dummy;
+		if (device_read_response(bluetooth_device->sd, &dummy, 1)) {
+			LOG(LOG_ERR, "failed in read response");
+			return 1;
+		}
+	}
 
 	return 0;
 }
@@ -992,15 +1007,19 @@ device_write_request(
 	if (frame_len == 0) {
 		return 0;
 	}
+	LOG_DUMP(LOG_DEBUG, frame, frame_len);
 	wlen = 0;
 	while (wlen != frame_len) {
+		LOG(LOG_DEBUG, "trace: start write");
 		tmp_wlen = write(sd, &frame[wlen], frame_len - wlen);
+		LOG(LOG_DEBUG, "trace: end write");
 		if (tmp_wlen < 0) {
 			LOG(LOG_ERR, "can not write echonet lite request frame");
 			return 1;
 		}
 		wlen += tmp_wlen;
 	}
+	/* debug */
 
         return 0;
 }
@@ -1021,13 +1040,16 @@ device_read_response(
 	}
 	rlen = 0;
 	while (rlen != buffer_len) {
+		LOG(LOG_DEBUG, "trace: start read");
 		tmp_rlen = read(sd, &buffer[rlen], buffer_len - rlen);
+		LOG(LOG_DEBUG, "trace: end read");
 		if (tmp_rlen < 0) {
 			LOG(LOG_ERR, "can not read echonet lite response");
 			return 1;
 		}
 		rlen += tmp_rlen;
 	}
+	LOG_DUMP(LOG_DEBUG, buffer, buffer_len);
 
         return 0;
 }

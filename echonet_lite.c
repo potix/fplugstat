@@ -116,6 +116,7 @@ enl_request_frame_init(
 	}
 
 	// frameの初期化
+	memset(enl_request_frame_info, 0, sizeof(enl_request_frame_info_t));
 	memset(enl_request_frame_info->buffer, 0, ENL_REGULATION_FRAME_COMMON_LEN);
 	enl_request_frame_info->frame_len = ENL_REGULATION_FRAME_COMMON_LEN;
 	enl_request_frame_info->opc = 0;
@@ -203,6 +204,7 @@ enl_response_frame_init(
 		errno = EINVAL;
 		return 1;
 	}
+	memset(enl_response_frame_info, 0, sizeof(enl_response_frame_info_t));
 	enl_response_frame_info->frame_len = ENL_REGULATION_FRAME_COMMON_LEN;
 	enl_response_frame_info->epc_ready = 1;
 	*buffer = enl_response_frame_info->buffer;
@@ -230,8 +232,9 @@ enl_response_frame_add(
 	if (enl_response_frame_info->frame_len == ENL_REGULATION_FRAME_COMMON_LEN) {
 		ef = (enl_frame_t *)enl_response_frame_info->buffer;
 		enl_response_frame_info->opc = ef->ef_edata.opc;
+		LOG(LOG_DEBUG, "trace: opc = %u", enl_response_frame_info->opc);
 	}
-	if (enl_response_frame_info->opc != 0) {
+	if (enl_response_frame_info->opc > 0) {
 		if (enl_response_frame_info->epc_ready) {
 			*buffer = &enl_response_frame_info->buffer[enl_response_frame_info->frame_len];
 			*buffer_len = 2; /* epc + pdc */
@@ -244,6 +247,7 @@ enl_response_frame_add(
 			enl_response_frame_info->frame_len += latest_pdc;
 			enl_response_frame_info->epc_ready = 1;
 			enl_response_frame_info->opc--;
+			LOG(LOG_DEBUG, "trace: opc = %u", enl_response_frame_info->opc);
 		}
 	} else {
 		*buffer = NULL;
@@ -419,6 +423,7 @@ enl_request_any_frame_init(
 	}
 
 	// frameの初期化
+	memset(enl_request_any_frame_info, 0, sizeof(enl_request_any_frame_info_t));
 	memset(enl_request_any_frame_info->buffer, 0, ENL_ANY_FRAME_COMMON_LEN);
 	enl_request_any_frame_info->frame_len = ENL_ANY_FRAME_COMMON_LEN + edata_len;
 	ef_hdr = (enl_frame_hdr_t *)enl_request_any_frame_info->buffer;
@@ -476,6 +481,7 @@ enl_response_any_frame_init(
 		return 1;
 	}
 
+	memset(enl_response_any_frame_info, 0, sizeof(enl_response_any_frame_info_t));
 	enl_response_any_frame_info->frame_len = ENL_ANY_FRAME_COMMON_LEN + edata_len;
 	enl_response_any_frame_info->edata_len = edata_len;
 	*buffer = enl_response_any_frame_info->buffer;

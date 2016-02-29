@@ -6,6 +6,7 @@
 #include <errno.h>
 
 #define MAX_FORMAT_LEN 2048
+#define DUMP_BUF_MAX 4096
 
 struct key_value_map {
 	const char *key;
@@ -106,6 +107,25 @@ logger_log(const char *func, int line, int serverity, const char *format, ...)
 	va_start(list, format);
 	vsyslog(serverity, new_format, list);
 	va_end(list);
+
+	return 0;
+}
+
+int
+logger_dump(const char *func, int line, int serverity, const unsigned char *buf, size_t buf_size)
+{
+	char dump_buf[DUMP_BUF_MAX];
+        int total_len = 0;
+	int idx = 0;
+
+	if (serverity > filter_serverity) {
+		return 0;
+	}
+	while(total_len + 2 < DUMP_BUF_MAX && idx < buf_size) {
+		total_len += snprintf(&dump_buf[total_len], sizeof(dump_buf) - total_len, "%02x", buf[idx]);
+		idx++;
+	}
+	syslog(serverity, "%s", dump_buf);
 
 	return 0;
 }

@@ -423,8 +423,8 @@ api_cb(
 
 	/* 初期化 */
 	address[0] = '\0';
-	default_start = 0;
 	default_end = time(NULL);
+	default_start = default_end - (86400 * 31);
 	localtime_r(&default_start, &start_tm);
 	localtime_r(&default_end, &end_tm);
 
