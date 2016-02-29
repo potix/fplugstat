@@ -428,6 +428,18 @@ fplug_device_reset(
 	}
 	enl_response_frame_get_opc(&bluetooth_device->enl_response_frame_info, &opc);
 	LOG(LOG_DEBUG, "initalize: esv = %u, opc = %u", esv, opc);
+	if (esv == 0x71) {
+		/*
+		 * device bug workaround
+		 * 6 bytes longer than the response is written to specification
+		 */ 
+		LOG(LOG_DEBUG, "workaround read a byte");
+		unsigned char dummy[6];
+		if (device_read_response(bluetooth_device->sd, dummy, sizeof(dummy))) {
+			LOG(LOG_ERR, "failed in read response");
+			return 1;
+		}
+	}
 	
 	return 0;
 }
