@@ -798,29 +798,29 @@ bluetooth_device_realtime_stat(
 		}
 		// 応答の読み込み
 		if (bluetooth_device_read_response_frame(bluetooth_device)) {
-			LOG(LOG_ERR, "failed in make echonet lite response frame (%d)", i);
+			LOG(LOG_ERR, "failed in make echonet lite response frame (%d)", stat_types[i]);
 			error++;
 			continue;
 		}
 		// 応答のチェック
 		enl_response_frame_get_esv(&bluetooth_device->enl_response_frame_info, &esv);
 		if (esv == 0x52) {
-			LOG(LOG_ERR, "nack response (%d: service = %u)", i, esv);
+			LOG(LOG_ERR, "nack response (%d: service = %u)", stat_types[i], esv);
 			error++;
 			continue;
 		}
 		enl_response_frame_get_opc(&bluetooth_device->enl_response_frame_info, &opc);
 		if (opc == 0) {
-			LOG(LOG_ERR, "no data (%d: count = %u)", i, opc);
+			LOG(LOG_ERR, "no data (%d: count = %u)", stat_types[i], opc);
 			error++;
 			continue;
 		}
-		LOG(LOG_DEBUG, "type %d: esv = %u, opc = %u", esv, opc);
+		LOG(LOG_DEBUG, "type %d: esv = %u, opc = %u", stat_types[i], esv, opc);
 		enl_response_frame_get_data(&bluetooth_device->enl_response_frame_info, 1, &epc, &pdc, &edt_ptr);
 		switch (stat_types[i]) {
 		case TEMPERATURE:
 			if (pdc < 2) {
-				LOG(LOG_ERR, "unkown value length (%d: len = %d)", i, pdc);
+				LOG(LOG_ERR, "unkown value length (%d: len = %d)", stat_types[i], pdc);
 				error++;
 				continue;
 			}
@@ -829,7 +829,7 @@ bluetooth_device_realtime_stat(
 			break;
 		case HUMIDITY:
 			if (pdc < 1) {
-				LOG(LOG_ERR, "unkown value length (%d: len = %d)", i, pdc);
+				LOG(LOG_ERR, "unkown value length (%d: len = %d)", stat_types[i], pdc);
 				error++;
 				continue;
 			}
@@ -837,7 +837,7 @@ bluetooth_device_realtime_stat(
 			break;
 		case ILLUMINANCE:
 			if (pdc < 2) {
-				LOG(LOG_ERR, "unkown value length (%d: len = %d)", i, pdc);
+				LOG(LOG_ERR, "unkown value length (%d: len = %d)", stat_types[i], pdc);
 				error++;
 				continue;
 			}
@@ -845,7 +845,7 @@ bluetooth_device_realtime_stat(
 			break;
 		case RWATT:
 			if (pdc < 2) {
-				LOG(LOG_ERR, "unkown value length (%d: len = %d)", i, pdc);
+				LOG(LOG_ERR, "unkown value length (%d: len = %d)", stat_types[i], pdc);
 				error++;
 				continue;
 			}
