@@ -1,4 +1,3 @@
-
 PROG = fplugstatd
 OBJS = main.o fplug_device.o stat_store.o echonet_lite.o config.o string_util.o logger.o http.o 
 CC = gcc
@@ -18,4 +17,4 @@ $(PROG): $(OBJS)
 
 .PHONY: clean
 clean:
-	rm -rf *.o */*.o fplugstatd
+	rm -rf *.o fplugstatd
