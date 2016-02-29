@@ -197,9 +197,10 @@ fplug_device_connect(
 			if (connect_bluetooth_device(&fplug_device->bluetooth_device[i])) {
 				continue;
 			}
+			if (bluetooth_device_set_datetime(&fplug_device->bluetooth_device[i])) {
+				LOG(LOG_WARNING, "faild in set datetime to device");
+			}
 			fplug_device->available_count++;
-
-			//* XXX 時刻設定する */
 		}
         }
 	if (fplug_device->available_count == 0) {
