@@ -579,8 +579,8 @@ create_stat_store_response(
 		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
 	len = snprintf(buf, sizeof(buf),
-            "{\"temperature\":\"%lf\",\"humidity\":\"%u\",\"intilluminance\":\"%u\",\"rwatt\":\"%lf\"}",
-            temperature, humidity, illuminance, rwatt);
+            "{\"index\":%d,\"time\":%lu,\"temperature\":%lf,\"humidity\":%u,\"intilluminance\":%u,\"rwatt\":%lf}",
+            api_callback_arg->idx, stat_time, temperature, humidity, illuminance, rwatt);
 	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;
 }
@@ -600,7 +600,9 @@ create_hourly_power_total_response(
 	if (api_callback_arg->idx != 0) {
 		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
-	len = snprintf(buf, sizeof(buf), "{\"reliability\":\"%u\",\"watt\":\"%lf\"}", reliability, watt);
+	len = snprintf(buf, sizeof(buf),
+            "{\"index\":%d,\"reliability\":%u,\"watt\":%lf}",
+            api_callback_arg->idx, reliability, watt);
 	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;
 }
@@ -622,7 +624,8 @@ create_hourly_other_response(
 		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
 	len = snprintf(buf, sizeof(buf),
-            "{\"temperature\":\"%lf\",\"humidity\":\"%u\",\"intilluminance\":\"%u\"}", temperature, humidity, illuminance);
+            "{\"index\":%d,\"temperature\":%lf,\"humidity\":%u,\"intilluminance\":%u}",
+            api_callback_arg->idx, temperature, humidity, illuminance);
 	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;
 }
