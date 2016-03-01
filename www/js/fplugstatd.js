@@ -13,9 +13,40 @@ var fplugstatd = {
     current_device: null,
     realtime_interval: null,
     hourly_interval: null,
-    realtime_vars: [],
-    hourly_power_vars: [],
-    hourly_other_vars: [],
+    realtime_values: [],
+    hourly_power_values: [],
+    hourly_other_values: [],
+    get_realtime_values: function() {
+        $.ajax({
+            method: "POST",
+            url: "/api/device/realtime",
+            data: { address : fplugstatd.current_device },
+            cache: false
+        }).done(function(msg){
+            fplugstatd.realtime_values = msg;
+        });
+    },
+    get_hourly_power_values: function() {
+        $.ajax({
+            method: "POST",
+            url: "/api/device/hourly/power/total",
+            data: { address : fplugstatd.current_device },
+            cache: false
+        }).done(function(msg){
+            fplugstatd.hourly_power_values = msg;
+        });
+    },
+    get_hourly_other_values: function() {
+        $.ajax({
+            method: "POST",
+            url: "/api/device/hourly/other",
+            data: { address : fplugstatd.current_device },
+            cache: false
+        }).done(function(msg){
+            fplugstatd.hourly_other_values = msg;
+        });
+    }
+    
 }
 
 $(document).ready(function(){
@@ -29,6 +60,9 @@ $(document).ready(function(){
     }});
     $("#sidebar-fplug-device").change(function() {
         fplugstatd.current_device = $("#sidebar-fplug-device").val();
+        fplugstatd.get_realtime_values();
+        fplugstatd.get_hourly_power_values();
+        fplugstatd.get_hourly_other_values();
     });
     $("#sidebar-fplug-realtime").click(function(event) {
         fplugstatd.select_view("body-fplug-realtime", $(event.target).attr("id"));
@@ -37,7 +71,7 @@ $(document).ready(function(){
             fplugstatd.hourly_interval = null;
         }
         fplugstatd.realtime_interval = setInterval(function(){
-            console.log("ajax realtime");
+            fplugstatd.get_realtime_values();
         }, 1000 * 5);
 	return false;
     });
@@ -48,7 +82,8 @@ $(document).ready(function(){
             fplugstatd.realtime_interval = null;
         }
         fplugstatd.hourly_interval = setInterval(function(){
-            console.log("ajax hourly");
+            fplugstatd.get_hourly_power_values();
+            fplugstatd.get_hourly_other_values();
         }, 1000 * 60);
 	return false;
     });
@@ -65,9 +100,6 @@ $(document).ready(function(){
 	return false;
     });
     fplugstatd.select_view("body-fplug-realtime", "sidebar-fplug-realtime");
-    fplugstatd.realtime_interval = setInterval(function(){
-        console.log("ajax realtime");
-    }, 1000 * 5);
     $.ajax({
         method: "GET",
         url: "/api/devicies",
@@ -77,7 +109,10 @@ $(document).ready(function(){
             $("#sidebar-fplug-device").append($("<option>").val(msg[i].address).text(msg[i].name));
         }
         fplugstatd.current_device = $("#sidebar-fplug-device").val();
-    }) 
+        fplugstatd.get_realtime_values();
+        fplugstatd.get_hourly_power_values();
+        fplugstatd.get_hourly_other_values();
+    }); 
 });
 
 
