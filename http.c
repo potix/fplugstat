@@ -367,11 +367,13 @@ default_cb(
                 LOG(LOG_DEBUG, "failed in fstat");
 		goto last;
 	}
+	LOG(LOG_DEBUG, "url path = %s", decoded_path);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", content_type);
 	evbuffer_add_file(evb, fd, 0, st.st_size);
 	evhttp_send_reply(req, 200, "OK", evb);
 last:
 	if (error) {
+		LOG(LOG_DEBUG, "url path = %s", decoded_path);
 		evhttp_send_error(req, status_code, reason);
 	}
 	if (evb) {
