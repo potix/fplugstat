@@ -1,7 +1,86 @@
+
+var fplugstatd = {
+    select_view: function(body_id, menu_id) {
+        $("#body-fplug-realtime").hide();
+        $("#sidebar-fplug-realtime").css("color","black");
+        $("#body-fplug-hourly").hide();
+        $("#sidebar-fplug-hourly").css("color","black");
+        $("#body-fplug-control").hide();
+        $("#sidebar-fplug-control").css("color","black");
+        $("#" + body_id).show();
+        $("#" + menu_id).css("color","red");
+    },
+    current_device: null,
+    realtime_interval: null,
+    hourly_interval: null,
+    realtime_vars: [],
+    hourly_power_vars: [],
+    hourly_other_vars: [],
+}
+
 $(document).ready(function(){
-    $("#body-fplug-realtime").tabs();
-    $("#body-fplug-hourly").tabs();
+    $("#body-fplug-realtime").tabs({activate: function( event, ui ) {
+        console.log("update chart")
+        console.log(ui.newTab);
+    }});
+    $("#body-fplug-hourly").tabs({activate: function( event, ui ) {
+        console.log("update chart")
+        console.log(ui.newTab);
+    }});
+    $("#sidebar-fplug-device").change(function() {
+        fplugstatd.current_device = $("#sidebar-fplug-device").val();
+    });
+    $("#sidebar-fplug-realtime").click(function(event) {
+        fplugstatd.select_view("body-fplug-realtime", $(event.target).attr("id"));
+        if (fplugstatd.hourly_interval != null) {
+            clearInterval(fplugstatd.hourly_interval);
+            fplugstatd.hourly_interval = null;
+        }
+        fplugstatd.realtime_interval = setInterval(function(){
+            console.log("ajax realtime");
+        }, 1000 * 5);
+	return false;
+    });
+    $("#sidebar-fplug-hourly").click(function(event) {
+        fplugstatd.select_view("body-fplug-hourly", $(event.target).attr("id"));
+        if (fplugstatd.realtime_interval != null) {
+            clearInterval(fplugstatd.realtime_interval);
+            fplugstatd.realtime_interval = null;
+        }
+        fplugstatd.hourly_interval = setInterval(function(){
+            console.log("ajax hourly");
+        }, 1000 * 60);
+	return false;
+    });
+    $("#sidebar-fplug-control").click(function(event) {
+        fplugstatd.select_view("body-fplug-control", $(event.target).attr("id"));
+        if (fplugstatd.hourly_interval != null) {
+            clearInterval(fplugstatd.hourly_interval);
+            fplugstatd.hourly_interval = null;
+        }
+        if (fplugstatd.realtime_interval != null) {
+            clearInterval(fplugstatd.realtime_interval);
+            fplugstatd.realtime_interval = null;
+        }
+	return false;
+    });
+    fplugstatd.select_view("body-fplug-realtime", "sidebar-fplug-realtime");
+    fplugstatd.realtime_interval = setInterval(function(){
+        console.log("ajax realtime");
+    }, 1000 * 5);
+    $.ajax({
+        method: "GET",
+        url: "/api/devicies",
+        cache: false
+    }).done(function(msg) {
+        for (var i = 0; i < msg.length; i++) {
+            $("#sidebar-fplug-device").append($("<option>").val(msg[i].address).text(msg[i].name));
+        }
+        fplugstatd.current_device = $("#sidebar-fplug-device").val();
+    }) 
 });
+
+
 
 // あとはjavascriptかく
 

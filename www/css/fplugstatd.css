@@ -5,9 +5,14 @@ body {
 }
 .menu-title {
         font-size: large;
+        font-weight: bold;
 	margin-left: 10px;
+	margin-bottom: 10px;
 }
-.menu-child {
+.menu-child-select {
+	margin-left: 20px;
+}
+.menu-child-link {
 	margin-left: 20px;
         text-decoration: underline;
         cursor: pointer;
@@ -16,7 +21,8 @@ body {
 	text-align: center; 
 }
 .title {
-        font-size: large;
+        font-weight: bold;
+        font-size: 40px;
 }
 #header {
         top: 0px;
@@ -30,14 +36,14 @@ body {
 	top: 40px;
         bottom: 40px;
 	left: 0px;
-	width: 180px;
+	width: 200px;
 	background: #f0e68c;
 }
 #body {
        position: absolute;
        top: 40px;
        bottom: 40px;
-       left: 180px;
+       left: 200px;
        right: 0px;
        background: #ffffe0;
 }

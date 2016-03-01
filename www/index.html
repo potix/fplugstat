@@ -6,7 +6,7 @@
         <link rel="stylesheet" href="css/fplugstatd.css">
         <script src="js/jquery/jquery.js"></script>
         <script src="js/jquery-ui/jquery-ui.min.js"></script>
-        <script src="js/d3.v3.min.js"></script>
+        <script src="js/d3/d3.v3.min.js"></script>
         <script src="js/fplugstatd.js"></script>
     </head>
     <body>
@@ -17,11 +17,11 @@
             <div id="sidebar">
                 <div id="sidebar-fplug">  
                     <div class="menu-title">FPLUG</div>
+                    <div class="menu-child-select">デバイス: <select id="sidebar-fplug-device"></select></div>
                     <ou>
-	    	        <li class="menu-child" id="sidebar-fplug-realtime" > リアルタイム情報</li>
-		        <li class="menu-child" id="sidebar-fplug-hourly"> 時間毎の情報 </li>
-		        <li class="menu-child" id="sidebar-fplug-realtime"> 制御 </li>
-                        </lu>
+	    	        <li class="menu-child-link" id="sidebar-fplug-realtime" > リアルタイム情報</li>
+		        <li class="menu-child-link" id="sidebar-fplug-hourly"> 時間毎の情報 </li>
+		        <li class="menu-child-link" id="sidebar-fplug-control"> 制御 </li>
                     </ou>
                 </div>
             </div>
@@ -29,10 +29,10 @@
                 <div id="body-fplug">
 		    <div id="body-fplug-realtime"> 
                         <ul>
-                            <li id="body-fplug-realtime-temperature"><a href="#body-fplug-realtime-temperature-fragment">温度</a></li>
-                            <li id="body-fplug-realtime-humidity"><a href="#body-fplug-realtime-humidity-fragment">湿度</a></li>
-                            <li id="body-fplug-realtime-illuminance"><a href="#body-fplug-realtime-illuminance-fragment">照度</a></li>
-                            <li id="body-fplug-realtime-watt"><a href="#body-fplug-realtime-watt-fragment">電力</a></li>
+                            <li id="body-fplug-realtime-temperature"><a href="#body-fplug-realtime-temperature-fragment">温度(リアルタイム)</a></li>
+                            <li id="body-fplug-realtime-humidity"><a href="#body-fplug-realtime-humidity-fragment">湿度(リアルタイム)</a></li>
+                            <li id="body-fplug-realtime-illuminance"><a href="#body-fplug-realtime-illuminance-fragment">照度(リアルタイム)</a></li>
+                            <li id="body-fplug-realtime-watt"><a href="#body-fplug-realtime-watt-fragment">電力(リアルタイム)</a></li>
                        </ul>
                        <div id="body-fplug-realtime-temperature-fragment">
                            <div id="body-fplug-realtime-temperature-chart">
@@ -57,10 +57,10 @@
                     </div>
 		    <div id="body-fplug-hourly"> 
                         <ul>
-                            <li id="body-fplug-hourly-temperature"><a href="#body-fplug-hourly-temperature-fragment"><span>温度</span></a></li>
-                            <li id="body-fplug-hourly-humidity"><a href="#body-fplug-hourly-humidity-fragment"><span>湿度</span></a></li>
-                            <li id="body-fplug-hourly-illuminance"><a href="#body-fplug-hourly-illuminance-fragment"><span>照度</span></a></li>
-                            <li id="body-fplug-hourly-watt"><a href="#body-fplug-hourly-watt-fragment"><span>電力<span></a></li>
+                            <li id="body-fplug-hourly-temperature"><a href="#body-fplug-hourly-temperature-fragment"><span>温度(1時間毎)</span></a></li>
+                            <li id="body-fplug-hourly-humidity"><a href="#body-fplug-hourly-humidity-fragment"><span>湿度(1時間毎)</span></a></li>
+                            <li id="body-fplug-hourly-illuminance"><a href="#body-fplug-hourly-illuminance-fragment"><span>照度(1時間毎)</span></a></li>
+                            <li id="body-fplug-hourly-watt"><a href="#body-fplug-hourly-watt-fragment"><span>電力(1時間毎)<span></a></li>
                        </ul>
                        <div id="body-fplug-hourly-temperature-fragment">
                            <div id="body-fplug-hourly-temperature-chart">
