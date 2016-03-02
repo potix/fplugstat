@@ -473,7 +473,8 @@ int
 fplug_device_hourly_power_total_foreach(
     fplug_device_t *fplug_device,
     const char *device_address,
-    struct tm *start_tm,
+    struct tm *end_tm,
+    int init,
     void (*foreach_cb)(double watt, unsigned char reliability, void *cb_arg),
     void *cb_arg)
 {
@@ -493,7 +494,8 @@ fplug_device_hourly_power_total_foreach(
 
 	if (fplug_device == NULL ||
 	    device_address == NULL ||
-	    foreach_cb == NULL) {
+	    foreach_cb == NULL ||
+	    (init == 0 && end_tm == NULL)) {
 		errno = EINVAL;
 		return 1;
 	}
@@ -502,14 +504,14 @@ fplug_device_hourly_power_total_foreach(
 		return 1;
 	}
 
-	/* start_tmがNULLなら現在時刻としつつ、初期化する方使う */
-	if (start_tm == NULL) {
+	/* initなら現在時刻としつつ、初期化する方を使う */
+	if (init) {
 		now = time(NULL);
 		if(localtime_r(&now, &now_tm) == NULL) {
 			LOG(LOG_ERR, "failed in get local time");
 			return 1;
 		}
-		start_tm = &now_tm;
+		end_tm = &now_tm;
 		past = 0;
 	}
 	if (past) {
@@ -517,11 +519,11 @@ fplug_device_hourly_power_total_foreach(
 	} else {
 		fplug_hourly_power_total_edata.req_type = 0x11;
 	}
-	fplug_hourly_power_total_edata.hour = start_tm->tm_hour;
-	fplug_hourly_power_total_edata.min = start_tm->tm_min;
-	fplug_hourly_power_total_edata.year = start_tm->tm_year + 1900;
-	fplug_hourly_power_total_edata.month = start_tm->tm_mon + 1;
-	fplug_hourly_power_total_edata.day = start_tm->tm_mday;
+	fplug_hourly_power_total_edata.hour = end_tm->tm_hour;
+	fplug_hourly_power_total_edata.min = end_tm->tm_min;
+	fplug_hourly_power_total_edata.year = end_tm->tm_year + 1900;
+	fplug_hourly_power_total_edata.month = end_tm->tm_mon + 1;
+	fplug_hourly_power_total_edata.day = end_tm->tm_mday;
 	/* リクエストフレーム書き込み */
 	if (enl_request_any_frame_init(&bluetooth_device->enl_request_any_frame_info, (unsigned char *)&fplug_hourly_power_total_edata, sizeof(fplug_hourly_power_total_edata_t))) {
 		LOG(LOG_ERR, "failed in initialize echonet lite frame of hourly power");
@@ -576,7 +578,7 @@ int
 fplug_device_hourly_other_foreach(
     fplug_device_t *fplug_device,
     const char *device_address,
-    struct tm *start_tm,
+    struct tm *end_tm,
     void (*foreach_cb)(double temperature, unsigned int humidity, unsigned int illuminance, void *cb_arg),
     void *cb_arg)
 {
@@ -602,13 +604,12 @@ fplug_device_hourly_other_foreach(
 		return 1;
 	}
 
-	/* start_tmがNULLなら現在時刻としつつ、初期化する方使う */
 	fplug_hourly_other_edata.req_type = 0x17;
-	fplug_hourly_other_edata.hour = start_tm->tm_hour;
-	fplug_hourly_other_edata.min = start_tm->tm_min;
-	fplug_hourly_other_edata.year = start_tm->tm_year + 1900;
-	fplug_hourly_other_edata.month = start_tm->tm_mon + 1;
-	fplug_hourly_other_edata.day = start_tm->tm_mday;
+	fplug_hourly_other_edata.hour = end_tm->tm_hour;
+	fplug_hourly_other_edata.min = end_tm->tm_min;
+	fplug_hourly_other_edata.year = end_tm->tm_year + 1900;
+	fplug_hourly_other_edata.month = end_tm->tm_mon + 1;
+	fplug_hourly_other_edata.day = end_tm->tm_mday;
 	/* リクエストフレーム書き込み */
 	if (enl_request_any_frame_init(&bluetooth_device->enl_request_any_frame_info, (unsigned char *)&fplug_hourly_other_edata, sizeof(fplug_hourly_other_edata_t))) {
 		LOG(LOG_ERR, "failed in initialize echonet lite frame of of hourly other");
