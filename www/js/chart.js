@@ -27,37 +27,413 @@
                         '#ff6600','#ff0000','#cc0066','#993399','#6633cc','#3300ff','#6699ff','#00cccc',
                         '#99ffcc','#009966','#003300','#ccff33','#ffff00','#cc3300','#ff3300','#000000'];
 
-    var _chartGetColor = function(pos) {
+    var _cGetColor = function(pos) {
         var idx = pos % _chartColors.length;
         return _chartColors[idx];
     }
 
-    var date = new Date( 1369720268 * 1000 );
+    var _cGetStringLength = function(str) {
+        len = 0;
+        for (var i = 0; i < str.length; i++) {
+            if (str.charCodeAt(i) < 256) {
+                len += 1;
+            } else {
+                len += 2;
+            }
+        }
+        return len;
+    }
 
+    //var date = new Date( 1369720268 * 1000 );
+
+    var _cDrawTopContainer = function(target, selector, info) {
+        var obj = d3.selectAll(target)
+                    .selectAll(selector)
+                    .data(info);
+        obj.attr("class", function(d) { return d.class; });
+        obj.enter()
+           .append("div")
+           .attr("class", function(d) { return d.class; });
+        obj.exit().remove();
+        return obj;
+    }
+
+    var _cDrawChartTitle = function(target, selector, info) {
+        var obj = d3.selectAll(target)
+                    .selectAll(selector)
+                    .data(info);
+        obj.attr("class", function(d) { return d.class; })
+           .text(function(d) { return d.title; });
+        obj.enter()
+           .append("div")
+           .attr("class", function(d) { return d.class; })
+           .text(function(d) { return d.title; });
+        obj.exit().remove();
+        return obj;
+    }
+
+    var _cDrawChartTop = function(target, selector, info) {
+        var obj = d3.selectAll(target)
+                    .selectAll(selector)
+                    .data(info);
+        obj.attr("class", function(d) { return d.class })
+           .attr("width", function(d) { return d.width })
+           .attr("height", function(d) { return d.height })
+           .attr("viewBox", function(d) { return d.viewBox });
+        obj.enter()
+           .append("svg")
+           .attr("class", function(d) { return d.cls })
+           .attr("width", function(d) { return d.width })
+           .attr("height", function(d) { return d.height })
+           .attr("viewBox", function(d) { return d.viewBox });
+        obj.exit().remove();
+        return obj;
+    }
+
+    var _cDrawChartChild = function(target, selector, info) {
+        var obj = d3.selectAll(target)
+                    .selectAll(selector)
+                    .data(info);
+        obj.attr("class", function(d) { return d.class })
+           .attr("preserveAspectRatio", function(d) { return d.preserveAspectRatio})
+           .attr("x", function(d) { return d.x })
+           .attr("y", function(d) { return d.y })
+           .attr("width", function(d) { return d.width })
+           .attr("height", function(d) { return d.height })
+           .attr("viewBox", function(d) { return d.viewBox });
+        obj.enter()
+           .append("svg")
+           .attr("class", function(d) { return d.cls })
+           .attr("preserveAspectRatio", function(d) { return d.preserveAspectRatio})
+           .attr("x", function(d) { return d.x })
+           .attr("y", function(d) { return d.y })
+           .attr("width", function(d) { return d.width })
+           .attr("height", function(d) { return d.height })
+           .attr("viewBox", function(d) { return d.viewBox});
+        obj.exit().remove();
+        return obj;
+    }
+
+    var _tcDrawChartMainAxisX = function(target, selectorMain, selectorAxis, info) {
+        var obj = d3.selectAll(target)
+                    .selectAll(selectorMain)
+                    .selectAll(selectorAxis)
+                    .data(info);
+        obj.attr("class", function(d){ return d.class; })
+           .attr("transform", function(d){ return "translate(0," + d.height + ")"; });
+           .call(function(d){ return d.axisX; })
+        obj.enter()
+           .append("g")
+           .attr("class", function(d){ return d.class; });
+           .attr("transform", function(d) { return "translate(0," + d.height + ")"; })
+           .call(function(d){ return d.axisX; })
+        obj.exit().remove();
+        return obj;
+    }
+
+    var _tcDrawChartMainUnitX = function(target, selector, info) {
+        var obj = d3.selectAll(target)
+                    .selectAll(selector)
+                    .data(info);
+        obj.attr("class", function(d){ return d.class; })
+           .attr("transform", rotate(-90))
+           .attr("x", function(d){ return d.x; })
+           .attr("y", function(d){ return d.y; })
+           .style("text-anchor", "end")
+           .style("font-size", function(d){ return d.fontSize; })
+           .text(function(d){ return d.unitX });
+        obj.enter()
+           .append("text")
+           .attr("class", function(d){ return d.class; })
+           .attr("transform", rotate(-90))
+           .attr("s", function(d){ return d.x; })
+           .attr("y", function(d){ return d.y; })
+           .style("text-anchor", "end")
+           .text(function(d){ return d.unitX });
+           .style("font-size", function(d){ return d.fontSize; })
+        obj.exit().remove();
+        return obj;
+    }
+
+    var _tcDrawChartMainAxisY = function(target, selectorMain, selectorAxis, info) {
+        var obj = d3.selectAll(target)
+                    .selectAll(selectorMain)
+                    .selectAll(selectorAxis)
+                    .data(info);
+        obj.attr("class", function(d){ return d.class; })
+           .call(function(d){ return d.axisY; })
+        obj.enter()
+           .append("g")
+           .attr("class", function(d){ return d.class; });
+           .call(function(d){ return d.axisY; })
+        obj.exit().remove();
+        return obj;
+    }
+
+    var _tcDrawChartMainUnitY = function(target, selector, info) {
+        var obj = d3.selectAll(target)
+                    .selectAll(selector)
+                    .data(info);
+        obj.attr("class", function(d){ return d.class; })
+           .attr("transform", rotate(-90));
+           .attr("x", function(d){ return d.x; } );
+           .attr("y", function(d){ return d.y; } );
+           .style("text-anchor", "end");
+           .style("font-size", function(d){ return d.fontSize; })
+           .text(function(d){ return d.unitX });
+        obj.enter()
+           .append("text")
+           .attr("class", function(d){ return d.class; })
+           .attr("transform", rotate(-90));
+           .attr("x", function(d){ return d.x; });
+           .attr("y", function(d){ return d.y; });
+           .style("text-anchor", "end");
+           .style("font-size", function(d){ return d.fontSize; })
+           .text(function(d){ return d.unitX });
+        obj.exit().remove();
+        return obj;
+    }
+
+    var _tcDrawChartMainLineContainer = function(target, selectorMain, selectorLineContainer, info) {
+        var obj = d3.selectAll(target)
+                    .selectAll(selectorMain)
+                    .selectAll(selectorLine)
+                    .data(info);
+        obj.attr("class", function(d){ return d.class; })
+        obj.enter()
+           .append("g")
+           .attr("class", function(d){ return d.class; });
+        obj.exit().remove();
+        return obj;
+    }
+
+    var _tcDrawChartMainLine = function(target, selectorMain, selectorLineContainer, selectorLine, info) {
+        var obj = d3.selectAll(target)
+                    .selectAll(selectorMain)
+                    .selectAll(selectorLineContainer)
+                    .selectAll(selectorLine)
+                    .data(info);
+        obj.attr("class", function(d){ return d.class; })
+           .attr("d", afunction(d) { return line(d.values); })
+           .attr("data-legend",function(d) { return d.legend})
+           .style("stroke",function(d) { return d.color });
+        obj.enter()
+           .append("path")
+           .attr("class", function(d){ return d.class; })
+           .attr("d", afunction(d) { return line(d.values); })
+           .attr("data-legend",function(d) { return d.legend})
+           .style("stroke",function(d) { return d.color });
+        obj.exit().remove();
+        return obj;
+    }
+
+    var _chartDraw = function(self, data)  {
+        // 判例の最大文字列とっとく
+        var maxLegendLen = 0;
+        for (var i = 0;  i < data.lines.length; i++ ) {
+            var len = _tcGetStringLength(data.lines[i].legend);
+            if (maxLegendLen < len) {
+                maxLegendLen = len;
+            }
+        }
+        // 最大最小値調べとく
+        var xMax = null;
+        var yMax = null;
+        var xMin = null;
+        var yMin = null;
+        for (var i = 0;  i < data.lines.length; i++ ) {
+            var max = d3.max(data.lines[i].values, function(d){ return d.x });
+            if (xMax == null || xMax < max) {
+                xMax = max;
+            }
+            max = d3.max(data.lines[i].values, function(d){ return d.y });
+            if (yMax == null || yMax < max) {
+                yMax = max;
+            }
+            var min = d3.min(data.lines[i].values, function(d){ return d.x });
+            if (xMin == null || xMin > min) {
+                xMin = min;
+            }
+            min = d3.min(data.lines[i].values, function(d){ return d.y });
+            if (yMin == null || yMin > min) {
+                yMin = min;
+            }
+        }
+        // define
+        var unitFontSize = 16;
+        var yPadding = 8;
+        var xPadding = 8;
+        var unitXSizeX = _tcGetStringLength(data.unitX) * unitFontSize;
+
+        // mainのcanvas
+        var mainWidth = data.width;
+        var mainHeight = (data.Height/5) * 4;
+        var mainOffsetX = 0
+        var mainOffsetY = 0;
+
+        // naviのcanvas
+        var naviWidth =  data.width;
+        var naviHeight = data.Height/5
+        var naviOffsetX = 0;
+        var naviOffsetY = mainHeight
+
+	// x Scale
+        var scaleX = d3.scale.linear()
+                       .domain([xMin, xMax)])
+                       .range([0, mainWidth]);
+	// x Scale
+        var scaleY = d3.scale.linear()
+                       .domain([yMin, yMax])
+                       .range([mainHeight, 0]);
+
+        // x axis
+        var axisX = d3.svg.axis()
+                          .scale(xScale)
+                          .orient("bottom")
+                          .innerTickSize(-mainHeight)
+                          .outerTickSize(0)
+                          .tickPadding(xPadding);
+        // y axis
+        var axisY = d3.svg.axis()
+                          .scale(yScale)
+                          .orient("left")
+                          .innerTickSize(-mainCanvasWidth)
+                          .outerTickSize(0)
+                          .tickPadding(yPadding);
+        // line
+        var line = d3.svg.line()
+                     .interpolate("basis")
+                     .x(function(d) { return xScale(d.x); })
+                     .y(function(d) { return yScale(d.y); });
+
+        // top container
+        var containerInfo = [ { class : "chartContainer" } ]
+        var topContainerDiv = _cDrawTopContainer(self, "div.chartContainer", containerInfo);
+        // title
+        var titleInfo = [ { class: "chartTitle", title:data.title } ];
+        var titleDiv = _cDrawChartTitle(topContainerDiv, "div.chartTitle", titleInfo);
+        // chart top 
+        var chartTopInfo = [
+            {
+                class: "chartTop",
+                width:data.width,
+                height:data.height,
+                viewBox: viewBox: "" + 0 + " " + 0 + " " + data.width + " " + data.height
+            }
+        ];
+        var chartTopSvg = _cDrawChartTop(topContainerDiv, "svg.chartTop", chartTopInfo);
+        // chart child
+        var chartChildInfo = [
+            {
+                class: "chartChildMain chartChild",
+                x: mainOffsetX,
+                y: mainOffsetY,
+                width: mainWidth,
+                height: mainHeight,
+                preserveAspectRatio: "xMidYMid",
+                viewBox: viewBox: "" + 0 + " " + 0 + " " + mainWidth + " " + mainHeight
+            },
+            {
+                class: "chartChildNavi chartChild",
+                x: naviOffsetX,
+                y: naviOffsetY,
+                width: naviWidth,
+                height: naviHeight,
+                preserveAspectRatio: "xMidYMid",
+                viewBox: viewBox: "" + 0 + " " + 0 + " " + naviWidth + " " + naviHeight
+            }
+        ];
+        var chartChildSvg = _cDrawChartChild(chartTopSvg, "svg.chartChild", chartChildInfo);
+        // draw axis x
+        var chartAxisXInfo = [
+            {
+                class: "chartAxisX chartAxis",
+                height: mainHeight,
+                axisX: axisX
+            }
+        ]
+        var chartAxisXG = _tcDrawChartMainAxisX(chartTopSvg, "svg.chartChildMain", "g.chartAxisX", info);
+        // draw unit x
+        var chartUnitXInfo = [
+            {
+                class: "chartUnitX chartUnit",
+                x: mainHeight - unitXSizeX - xPadding,
+                y: yPadding ,
+                fontSize: unitFontSize + "px",
+                unitX: data.unitX
+            }
+        ]
+        var chartUnitXText = _tcDrawChartMainUnitX(chartAxisXG, "text.chartUnitX", info);
+        // draw axis y
+        var chartAxisYInfo = [
+            {
+                class: "chartAxisY chartAxis",
+                axisX: axisY
+            }
+        ]
+        var chartAxisYG = _tcDrawChartMainAxisY(chartTopSvg, "svg.chartChildMain", "g.chartAxisY", info);
+        // draw unit x
+        var chartUnitYInfo = [
+            {
+                class: "chartUnitY chartUnit",
+                x: xPadding,
+                y: yPadding ,
+                fontSize: unitFontSize + "px",
+                unitX: data.unitY
+            }
+        ]
+        var chartUnitYText = _tcDrawChartMainUnitY(chartAxisYG, "text.chartUnitY", info);
+        // draw line container
+        
+ 
+        
+
+
+
+
+
+
+         
+    }
+    
     var methods = {
         init: function(options) {
-            return this.each(function(){
-                var $this = $(this);
-                var data = $this.data('chart');
-                if (!data) {
-                    options = $.extend(true, {
-                        label: "",  
-                        xLegend: "",
-                        yLegend: "",
-                        width: 600,
-                        values: []
-                    }, options);   
-                    $(this).data('chart', options);
-                }
-                _chartDraw(this, data)
-            });
+            var $this = $(this);
+            var data = $this.data('chart');
+            if (!data) {
+                options = $.extend(true, {
+                    title: "title",
+                    width: 800,
+                    height: 500,
+                    labelX: "time",
+                    labelY: "point",
+                    lines: [
+                        {
+                            legend: "legend",
+                            values: [
+                                {
+                                    x:1,
+                                    y:2,
+                                },
+                                {
+                                    x:2,
+                                    y:3,
+                                }
+                            ]
+                        }
+                    ];
+                }, options);   
+                $(this).data('chart', options);
+            }
+            _chartDraw(this, data);
         },
-        update: function(values) {
-            return this.each(function(){
-                var $this = $(this);
-                var data = $this.data('chart');
-                data.chart.remove();
-        
+        update: function(multiValues) {
+            var $this = $(this);
+            var data = $this.data('chart');
+            if (!data) {
+                return this;
+            }
+            _chartRemove(this, data);
         }
     }
 

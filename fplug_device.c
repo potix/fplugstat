@@ -300,7 +300,7 @@ fplug_device_stat_store_foreach(
     const char *device_address,
     struct tm *start_tm,
     struct tm *end_tm,
-    void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned intilluminance, double rwatt, void *cb_arg),
+    void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned int illuminance, double rwatt, void *cb_arg),
     void *cb_arg) 
 {
 	int i;
@@ -566,7 +566,7 @@ fplug_device_hourly_power_total_foreach(
 	}
 	fplug_hourly_power_total_data_edt = (fplug_hourly_power_total_data_edt_t *)(response_edata_ptr + 2);
 	for (i = 0; i < 24; i++) {
-		foreach_cb(((int)fplug_hourly_power_total_data_edt->watt)/10, fplug_hourly_power_total_data_edt->reliability, cb_arg);
+		foreach_cb(((int)fplug_hourly_power_total_data_edt->watt), fplug_hourly_power_total_data_edt->reliability, cb_arg);
 		fplug_hourly_power_total_data_edt++;
 	}
 	

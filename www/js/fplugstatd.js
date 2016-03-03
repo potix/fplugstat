@@ -1,4 +1,3 @@
-
 var fplugstatd = {
     select_view: function(body_id, menu_id) {
         $("#body-fplug-realtime").hide();
@@ -13,9 +12,14 @@ var fplugstatd = {
     current_device: null,
     realtime_interval: null,
     hourly_interval: null,
-    realtime_values: [],
-    hourly_power_values: [],
-    hourly_other_values: [],
+    realtime_temperature_values: [],
+    realtime_humidity_values: [],
+    realtime_illuminance_values: [],
+    realtime_watt_values: [],
+    hourly_temperature_values: [],
+    hourly_humidity_values: [],
+    hourly_illuminance_values: [],
+    hourly_watt_values: [],
     get_realtime_values: function() {
         $.ajax({
             method: "POST",
@@ -23,7 +27,21 @@ var fplugstatd = {
             data: { address : fplugstatd.current_device },
             cache: false
         }).done(function(msg){
-            fplugstatd.realtime_values = msg;
+            fplugstatd.realtime_temperature_values = [];
+            fplugstatd.realtime_humidity_values = [];
+            fplugstatd.realtime_illuminance_values = [];
+            fplugstatd.realtime_watt_values = [];
+            for (var i = 0; i < msg.length; i++ ) {
+                elm = msg[i];
+                fplugstatd.realtime_temperature_values.push([elm.time * 1000, elm.temperature]);
+                fplugstatd.realtime_humidity_values.push([elm.time * 1000, elm.humidity]);
+                fplugstatd.realtime_illuminance_values.push([elm.time * 1000, elm.illuminance]);
+                fplugstatd.realtime_watt_values.push([elm.time * 1000, elm.rwatt]);
+            }
+            fplugstatd.draw_realtime_temperature_chart();
+            fplugstatd.draw_realtime_humidity_chart();
+            fplugstatd.draw_realtime_watt_chart();
+            fplugstatd.draw_realtime_illuminance_chart();
         });
     },
     get_hourly_power_values: function() {
@@ -33,7 +51,11 @@ var fplugstatd = {
             data: { address : fplugstatd.current_device },
             cache: false
         }).done(function(msg){
-            fplugstatd.hourly_power_values = msg;
+            fplugstatd.hourly_watt_values = [];
+            for (var i = 0; i < msg.length; i++ ) {
+                elm = msg[i];
+                fplugstatd.hourly_watt_values.push([elm.index, elm.watt]);
+            }
         });
     },
     get_hourly_other_values: function() {
@@ -43,21 +65,127 @@ var fplugstatd = {
             data: { address : fplugstatd.current_device },
             cache: false
         }).done(function(msg){
-            fplugstatd.hourly_other_values = msg;
+            fplugstatd.hourly_temperature_values = [];
+            fplugstatd.hourly_humidity_values = [];
+            fplugstatd.hourly_illuminance_values = [];
+            for (var i = 0; i < msg.length; i++ ) {
+                elm = msg[i];
+                fplugstatd.hourly_temperature_values.push([elm.index, elm.temperature]);
+                fplugstatd.hourly_humidity_values.push([elm.index, elm.humidity]);
+                fplugstatd.hourly_illuminance_values.push([elm.index, elm.illuminance]);
+            }
         });
+    },
+    realtime_temperature_chart: null,
+    draw_realtime_temperature_chart: function() {
+        var options = {
+            chart : {renderTo : "body-fplug-realtime-temperature-chart"},
+            rangeSelector : { selected : 1 },
+            title : {text: "温度 (リアルタイム)"},
+            xAxis : { type: "datetime",
+                      title: {text : "時間"}},
+            yAxis : {title: {text : "温度(℃)"}},
+            series: [
+               {
+                  name: fplugstatd.current_device,
+                  data: fplugstatd.realtime_temperature_values,
+               }
+            ]
+        }
+        fplugstatd.realtime_temperature_chart = new Highcharts.Chart(options);
+    },
+    realtime_humidity_chart: null,
+    draw_realtime_humidity_chart: function() {
+        var options = {
+            chart : {renderTo : "body-fplug-realtime-humidity-chart"},
+            rangeSelector : { selected : 1 },
+            title : {text: "湿度 (リアルタイム)"},
+            xAxis : { type: "datetime",
+                      title: {text : "時間"}},
+            yAxis : {title: {text : "湿度(％)"}},
+            series: [
+               {
+                  name: fplugstatd.current_device,
+                  data: fplugstatd.realtime_humidity_values,
+               }
+            ]
+        }
+        fplugstatd.realtime_humidity_chart = new Highcharts.Chart(options);
+    },
+    realtime_illuminance_chart: null,
+    draw_realtime_illuminance_chart: function() {
+        var options = {
+            chart : {renderTo : "body-fplug-realtime-illuminance-chart"},
+            rangeSelector : { selected : 1 },
+            title : {text: "照度 (リアルタイム)"},
+            xAxis : { type: "datetime",
+                      title: {text : "時間"}},
+            yAxis : {title: {text : "照度(ルクス)"}},
+            series: [
+               {
+                  name: fplugstatd.current_device,
+                  data: fplugstatd.realtime_illuminance_values,
+               }
+            ]
+        }
+        fplugstatd.realtime_illuminance_chart = new Highcharts.Chart(options);
+    },
+    realtime_watt_chart: null,
+    draw_realtime_watt_chart: function() {
+        var options = {
+            chart : {renderTo : "body-fplug-realtime-watt-chart"},
+            rangeSelector : { selected : 1 },
+            title : {text: "電力 (リアルタイム)"},
+            xAxis : { type: "datetime",
+                      title: {text : "時間"}},
+            yAxis : {title: {text : "電力(W)"}},
+            series: [
+               {
+                  name: fplugstatd.current_device,
+                  data: fplugstatd.realtime_watt_values,
+               }
+            ]
+        }
+        fplugstatd.realtime_watt_chart = new Highcharts.Chart(options);
+    },
+    hourly_temperature_chart: null,
+    draw_hourly_temperature_chart: function() {
+    },
+    hourly_humidity_chart: null,
+    draw_houtly_humidity_chart: function() {
+    },
+    hourly_illuminance_chart: null,
+    draw_hourly_illuminance_chart: function() {
+    },
+    hourly_watt_chart: null,
+    draw_hourly_watt_chart: function() {
     }
-    
 }
 
 $(document).ready(function(){
-    $("#body-fplug-realtime").tabs({activate: function( event, ui ) {
-        console.log("update chart")
-        console.log(ui.newTab);
-    }});
-    $("#body-fplug-hourly").tabs({activate: function( event, ui ) {
-        console.log("update chart")
-        console.log(ui.newTab);
-    }});
+    Highcharts.setOptions({
+      global: {
+        useUTC: false   // GMTではなくJSTを使う
+      },
+      lang: { 
+        rangeSelectorZoom: '表示範囲',
+        resetZoom: '表示期間をリセット',
+        resetZoomTitle: '表示期間をリセット',
+        rangeSelectorFrom: '表示期間',
+        rangeSelectorTo: '〜',
+        printButtonTitle: 'チャートを印刷',
+        exportButtonTitle: '画像としてダウンロード',
+        downloadJPEG: 'JPEG画像でダウンロード',
+        downloadPDF: 'PDF文書でダウンロード',
+        downloadPNG: 'PNG画像でダウンロード',
+        downloadSVG: 'SVG形式でダウンロード',
+        months: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+        weekdays: ['日', '月', '火', '水', '木', '金', '土'],
+        numericSymbols: null   // 1000を1kと表示しない
+      }
+    });
+    $("#body-fplug-realtime").tabs();
+    $("#body-fplug-hourly").tabs();
     $("#sidebar-fplug-device").change(function() {
         fplugstatd.current_device = $("#sidebar-fplug-device").val();
         fplugstatd.get_realtime_values();

@@ -37,7 +37,7 @@ int fplug_device_active_device_foreach(fplug_device_t *fplug_device,
  * fplugデバイスのアドレスからstat_storeを取得する 
  */
 int fplug_device_stat_store_foreach(fplug_device_t *fplug_device, const char *device_address, struct tm *start_tm, struct tm *end_tm,
-    void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned intilluminance, double rwatt, void *cb_arg), void *cb_arg);
+    void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned int illuminance, double rwatt, void *cb_arg), void *cb_arg);
 /*
  * fplugデバイスの初期化
  */

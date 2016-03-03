@@ -138,7 +138,7 @@ stat_store_stat_foreach(
     stat_store_t *stat_store,
     time_t start,
     time_t end,
-    void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned intilluminance, double rwatt, void *cb_arg),
+    void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned int illuminance, double rwatt, void *cb_arg),
     void *cb_arg)
 {
 	stat_value_t *stat_value;

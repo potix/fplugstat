@@ -588,7 +588,7 @@ create_stat_store_response(
 		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
 	len = snprintf(buf, sizeof(buf),
-            "{\"index\":%d,\"time\":%lu,\"temperature\":%lf,\"humidity\":%u,\"intilluminance\":%u,\"rwatt\":%lf}",
+            "{\"index\":%d,\"time\":%lu,\"temperature\":%lf,\"humidity\":%u,\"illuminance\":%u,\"rwatt\":%lf}",
             api_callback_arg->idx, stat_time, temperature, humidity, illuminance, rwatt);
 	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;
@@ -633,7 +633,7 @@ create_hourly_other_response(
 		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
 	len = snprintf(buf, sizeof(buf),
-            "{\"index\":%d,\"temperature\":%lf,\"humidity\":%u,\"intilluminance\":%u}",
+            "{\"index\":%d,\"temperature\":%lf,\"humidity\":%u,\"illuminance\":%u}",
             api_callback_arg->idx, temperature, humidity, illuminance);
 	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;

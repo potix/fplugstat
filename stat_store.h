@@ -27,6 +27,6 @@ int stat_store_stat_add(stat_store_t *stat_store, time_t stat_time, double tempe
  * stat情報をループ処理で取得する
  */
 int stat_store_stat_foreach(stat_store_t *stat_store, time_t start, time_t end,
-    void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned intilluminance, double rwatt, void *cb_arg), void *cb_arg);
+    void (*foreach_cb)(time_t stat_time, double temperature, unsigned int humidity, unsigned int illuminance, double rwatt, void *cb_arg), void *cb_arg);
 
 #endif
