@@ -51,7 +51,7 @@ int fplug_device_set_datetime(fplug_device_t *fplug_device, const char *device_a
 /*
  * fplugデバイスの電力の積算値取得 時間毎
  */
-int fplug_device_hourly_power_total_foreach(fplug_device_t *fplug_device, const char *device_address, struct tm *end_tm, int start,
+int fplug_device_hourly_power_total_foreach(fplug_device_t *fplug_device, const char *device_address, struct tm *end_tm, int init,
      void (*foreach_cb)(int idx, unsigned short watt, unsigned char reliability, void *cb_arg), void *cb_arg);
 
 /*
