@@ -522,7 +522,7 @@ api_cb(
 			error = 1;
                         goto last;
 		}
-		evhttp_send_reply(req, 200, "OK", NULL);
+		evhttp_send_reply(req, 204, "OK", NULL);
 	} else if (cmd_type == EVHTTP_REQ_POST && strcmp(&decoded_path[api_url_path_len], API_DEVICIE_DATETIME_URL) == 0) {
 		if (fplug_device_set_datetime(http_server->fplug_device, address)) {
 			LOG(LOG_ERR, "failed in set datetime");
@@ -531,7 +531,7 @@ api_cb(
 			error = 1;
                         goto last;
 		}
-		evhttp_send_reply(req, 200, "OK", NULL);
+		evhttp_send_reply(req, 204, "OK", NULL);
 	} else {
 		LOG(LOG_ERR, "unsupported api: method = %d, url = %s, partial url = %s", cmd_type, decoded_path, &decoded_path[api_url_path_len]);
 		*error_status_code = HTTP_NOTFOUND;
