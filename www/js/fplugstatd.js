@@ -40,8 +40,8 @@ var fplugstatd = {
             }
             fplugstatd.draw_realtime_temperature_chart();
             fplugstatd.draw_realtime_humidity_chart();
-            fplugstatd.draw_realtime_watt_chart();
             fplugstatd.draw_realtime_illuminance_chart();
+            fplugstatd.draw_realtime_watt_chart();
         });
     },
     get_hourly_power_values: function() {
@@ -54,8 +54,9 @@ var fplugstatd = {
             fplugstatd.hourly_watt_values = [];
             for (var i = 0; i < msg.length; i++ ) {
                 elm = msg[i];
-                fplugstatd.hourly_watt_values.push([elm.index, elm.watt]);
+                fplugstatd.hourly_watt_values.push([23 - elm.index, elm.watt]);
             }
+            fplugstatd.draw_hourly_watt_chart();
         });
     },
     get_hourly_other_values: function() {
@@ -70,21 +71,32 @@ var fplugstatd = {
             fplugstatd.hourly_illuminance_values = [];
             for (var i = 0; i < msg.length; i++ ) {
                 elm = msg[i];
-                fplugstatd.hourly_temperature_values.push([elm.index, elm.temperature]);
-                fplugstatd.hourly_humidity_values.push([elm.index, elm.humidity]);
-                fplugstatd.hourly_illuminance_values.push([elm.index, elm.illuminance]);
+                fplugstatd.hourly_temperature_values.push([23 - elm.index, elm.temperature]);
+                fplugstatd.hourly_humidity_values.push([23 - elm.index, elm.humidity]);
+                fplugstatd.hourly_illuminance_values.push([23 - elm.index, elm.illuminance]);
             }
+            fplugstatd.draw_hourly_temperature_chart();
+            fplugstatd.draw_hourly_humidity_chart();
+            fplugstatd.draw_hourly_illuminance_chart();
         });
     },
     realtime_temperature_chart: null,
     draw_realtime_temperature_chart: function() {
         var options = {
-            chart : {renderTo : "body-fplug-realtime-temperature-chart"},
+            chart : {
+                renderTo : "body-fplug-realtime-temperature-chart",
+                width: 800,
+                type: 'line',
+                zoomType: "x",
+                panning: true,
+                panKey: 'shift'
+            },
             rangeSelector : { selected : 1 },
-            title : {text: "温度 (リアルタイム)"},
-            xAxis : { type: "datetime",
-                      title: {text : "時間"}},
-            yAxis : {title: {text : "温度(℃)"}},
+            title : { text: "温度 (リアルタイム)" },
+            xAxis : {
+                type: "datetime",
+                title: {text : "時間"}},
+            yAxis : { title: {text : "温度(℃)"} },
             series: [
                {
                   name: fplugstatd.current_device,
@@ -97,11 +109,20 @@ var fplugstatd = {
     realtime_humidity_chart: null,
     draw_realtime_humidity_chart: function() {
         var options = {
-            chart : {renderTo : "body-fplug-realtime-humidity-chart"},
+            chart : { 
+                renderTo : "body-fplug-realtime-humidity-chart",
+                width: 800,
+                type: 'line',
+                zoomType: "x",
+                panning: true,
+                panKey: 'shift'
+            },
             rangeSelector : { selected : 1 },
-            title : {text: "湿度 (リアルタイム)"},
-            xAxis : { type: "datetime",
-                      title: {text : "時間"}},
+            title : { text: "湿度 (リアルタイム)" },
+            xAxis : {
+                type: "datetime",
+                title: {text : "時間"}
+            },
             yAxis : {title: {text : "湿度(％)"}},
             series: [
                {
@@ -115,12 +136,21 @@ var fplugstatd = {
     realtime_illuminance_chart: null,
     draw_realtime_illuminance_chart: function() {
         var options = {
-            chart : {renderTo : "body-fplug-realtime-illuminance-chart"},
+            chart : {
+                renderTo : "body-fplug-realtime-illuminance-chart",
+                width: 800,
+                type: 'line',
+                zoomType: "x",
+                panning: true,
+                panKey: 'shift'
+            },
             rangeSelector : { selected : 1 },
-            title : {text: "照度 (リアルタイム)"},
-            xAxis : { type: "datetime",
-                      title: {text : "時間"}},
-            yAxis : {title: {text : "照度(ルクス)"}},
+            title : { text: "照度 (リアルタイム)" },
+            xAxis : {
+                type: "datetime",
+                title: {text : "時間"}
+            },
+            yAxis : { title: {text : "照度(ルクス)"} },
             series: [
                {
                   name: fplugstatd.current_device,
@@ -133,11 +163,20 @@ var fplugstatd = {
     realtime_watt_chart: null,
     draw_realtime_watt_chart: function() {
         var options = {
-            chart : {renderTo : "body-fplug-realtime-watt-chart"},
+            chart : {
+                renderTo : "body-fplug-realtime-watt-chart",
+                width: 800,
+                type: 'line',
+                zoomType: "x",
+                panning: true,
+                panKey: 'shift'
+            },
             rangeSelector : { selected : 1 },
-            title : {text: "電力 (リアルタイム)"},
-            xAxis : { type: "datetime",
-                      title: {text : "時間"}},
+            title : { text: "電力 (リアルタイム)" },
+            xAxis : {
+                type: "datetime",
+                title: {text : "時間"} 
+            },
             yAxis : {title: {text : "電力(W)"}},
             series: [
                {
@@ -150,15 +189,111 @@ var fplugstatd = {
     },
     hourly_temperature_chart: null,
     draw_hourly_temperature_chart: function() {
+        var options = {
+            chart : {
+                renderTo : "body-fplug-hourly-temperature-chart",
+                width: 800,
+                type: 'line',
+                zoomType: "x",
+                panning: true,
+                panKey: 'shift'
+            },
+            rangeSelector : { selected : 1 },
+            title : { text: "温度 (リアルタイム)" },
+            xAxis : {
+                title: {text : "24時間"},
+                allowDecimals: false
+            },
+            yAxis : { title: {text : "温度(℃)"} },
+            series: [
+               {
+                  name: fplugstatd.current_device,
+                  data: fplugstatd.hourly_temperature_values,
+               }
+            ]
+        }
+        fplugstatd.hourly_temperature_chart = new Highcharts.Chart(options);
     },
     hourly_humidity_chart: null,
-    draw_houtly_humidity_chart: function() {
+    draw_hourly_humidity_chart: function() {
+        var options = {
+            chart : {
+                renderTo : "body-fplug-hourly-humidity-chart",
+                width: 800,
+                type: 'line',
+                zoomType: "x",
+                panning: true,
+                panKey: 'shift'
+            },
+            rangeSelector : { selected : 1 },
+            title : { text: "湿度 (リアルタイム)" },
+            xAxis : {
+                title: {text : "24時間"},
+                allowDecimals: false
+            },
+            yAxis : {title: {text : "湿度(%)"}},
+            series: [
+               {
+                  name: fplugstatd.current_device,
+                  data: fplugstatd.hourly_humidity_values,
+               }
+            ]
+        }
+        fplugstatd.hourly_humidity_chart = new Highcharts.Chart(options);
     },
     hourly_illuminance_chart: null,
     draw_hourly_illuminance_chart: function() {
+        var options = {
+            chart : {
+                renderTo : "body-fplug-hourly-illuminance-chart",
+                width: 800,
+                type: 'line',
+                zoomType: "x",
+                panning: true,
+                panKey: 'shift'
+            },
+            rangeSelector : { selected : 1 },
+            title : { text: "照度 (リアルタイム)" },
+            xAxis : {
+                title: {text : "24時間"},
+                allowDecimals: false
+            },
+            yAxis : {title: {text : "照度(ルクス)"}},
+            series: [
+               {
+                  name: fplugstatd.current_device,
+                  data: fplugstatd.hourly_illuminance_values,
+               }
+            ]
+        }
+        fplugstatd.hourly_illuminance_chart = new Highcharts.Chart(options);
     },
     hourly_watt_chart: null,
     draw_hourly_watt_chart: function() {
+        var options = {
+            chart : {
+                renderTo : "body-fplug-hourly-watt-chart",
+                width: 800,
+                type: 'line',
+                zoomType: "x",
+                panning: true,
+                panKey: 'shift'
+            },
+            rangeSelector : { selected : 1 },
+            title : { text: "電力 (リアルタイム)" },
+            xAxis : {
+                title: {text : "24時間"},
+                allowDecimals: false
+            },
+            yAxis : {title: {text : "電力(W)"}},
+            series: [
+               {
+                  name: fplugstatd.current_device,
+                  data: fplugstatd.hourly_watt_values,
+               }
+            ]
+        }
+        fplugstatd.hourly_watt_chart = new Highcharts.Chart(options);
     }
 }
 
@@ -198,9 +333,10 @@ $(document).ready(function(){
             clearInterval(fplugstatd.hourly_interval);
             fplugstatd.hourly_interval = null;
         }
+        fplugstatd.get_realtime_values();
         fplugstatd.realtime_interval = setInterval(function(){
             fplugstatd.get_realtime_values();
-        }, 1000 * 5);
+        }, 1000 * 10);
 	return false;
     });
     $("#sidebar-fplug-hourly").click(function(event) {
@@ -209,6 +345,8 @@ $(document).ready(function(){
             clearInterval(fplugstatd.realtime_interval);
             fplugstatd.realtime_interval = null;
         }
+        fplugstatd.get_hourly_power_values();
+        fplugstatd.get_hourly_other_values();
         fplugstatd.hourly_interval = setInterval(function(){
             fplugstatd.get_hourly_power_values();
             fplugstatd.get_hourly_other_values();
@@ -243,68 +381,3 @@ $(document).ready(function(){
     }); 
 });
 
-
-
-// あとはjavascriptかく
-
-/*
-
-// view切り替えイベント (デフォルトはリアルタイム)
-                        <li class="menu-child" id="sidebar-fplug-realtime" > リアルタイム情報</li>
-                        <li class="menu-child" id="sidebar-fplug-hourly"> 時間毎の情報 </li>
-                        <li class="menu-child" id="sidebar-fplug-realtime"> 制御 </li>
-
-
-
-// chart 表示 1
-                       <div id="body-fplug-realtime-temperature-fragment">
-                           <div id="body-fplug-realtime-temperature-chart">
-                               1
-                           </div>
-                       </div>
-                       <div id="body-fplug-realtime-humidity-fragment">
-                           <div id="body-fplug-realtime-humidity-chart">
-                               2
-                           </div>
-                       </div>
-                       <div id="body-fplug-realtime-illuminance-fragment">
-                           <div id="body-fplug-realtime-illuminance-chart">
-                               3
-                           </div>
-                       </div>
-                       <div id="body-fplug-realtime-watt-fragment">
-                           <div id="body-fplug-realtime-watt-chart">
-                               4
-                           </div>
-                       </div>
-
-                        
-// chart 表示 1
-                       <div id="body-fplug-hourly-temperature-fragment">
-                           <div id="body-fplug-hourly-temperature-chart">
-                               1
-                           </div>
-                       </div>
-                       <div id="body-fplug-hourly-humidity-fragment">
-                           <div id="body-fplug-realtime-humidity-chart">
-                               2
-                           </div>
-                       </div>
-                       <div id="body-fplug-hourly-illuminance-fragment">
-                           <div id="body-fplug-hourly-illuminance-chart">
-                               3
-                           </div>
-                       </div>
-                       <div id="body-fplug-hourly-watt-fragment">
-                           <div id="body-fplug-hourly-watt-chart">
-                               4
-                           </div>
-                       </div>
-// 制御イベント
-                    <div id="body-fplug-control">
-                        <button type="button" id="body-fplug-control-reset">リセット</button><br /><br />
-                        <button type="button" id="body-fplug-control-powerstart">電力取得開始</button><br /><br />
-                        <button type="button" id="body-fplug-control-datetimesetting">時刻設定</button><br /><br />
-                    </div>
-
-*/
