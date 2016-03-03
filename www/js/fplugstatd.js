@@ -119,7 +119,7 @@ var fplugstatd = {
             fplugstatd.draw_hourly_watt_chart();
             alert("積算電力の蓄積を開始しました。");
         }).fail(function(e)) {
-            alert("積算電力蓄積の開始中にエラーが発生しました。")
+            alert("積算電力蓄積の開始中にエラーが発生しました。");
         });
     },
     realtime_temperature_chart: null,
