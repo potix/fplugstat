@@ -80,7 +80,7 @@ var fplugstatd = {
             fplugstatd.draw_hourly_illuminance_chart();
         });
     },
-    fplug_device_reset: function() {
+    device_reset: function() {
         $.ajax({
             method: "POST",
             url: "/api/device/reset",
@@ -90,6 +90,18 @@ var fplugstatd = {
             alert("リセットしました。");
         }).fail(function(e){
             alert("リセット中にエラーが発生しました。");
+        });
+    },
+    device_set_datetime: function() {
+        $.ajax({
+            method: "POST",
+            url: "/api/device/datetime",
+            data: { address : fplugstatd.current_device },
+            cache: false
+        }).done(function(msg){
+            alert("時刻を設定しました。");
+        }).fail(function(e){
+            alert("時刻設定中にエラーが発生しました。");
         });
     },
     start_hourly_power_store: function() {
@@ -105,12 +117,11 @@ var fplugstatd = {
                 fplugstatd.hourly_watt_values.push([23 - elm.index, elm.watt]);
             }
             fplugstatd.draw_hourly_watt_chart();
-            alert("開始しました。");
+            alert("積算電力の蓄積を開始しました。");
+        }).fail(function(e)) {
+            alert("積算電力蓄積の開始中にエラーが発生しました。")
         });
     },
-
-
-
     realtime_temperature_chart: null,
     draw_realtime_temperature_chart: function() {
         var options = {
@@ -397,12 +408,13 @@ $(document).ready(function(){
 	return false;
     });
     $("#body-fplug-control-reset").click(function(event) {
-        fplugstatd.fplug_device_reset();
+        fplugstatd.device_reset();
     });
     $("#body-fplug-control-powerstart").click(function(event) {
         fplugstatd.start_hourly_power_store();
     });
     $("#body-fplug-control-datetimesetting").click(function(event) {
+        fplugstatd.device_set_datetime();
     });
     fplugstatd.select_view("body-fplug-realtime", "sidebar-fplug-realtime");
     $.ajax({
