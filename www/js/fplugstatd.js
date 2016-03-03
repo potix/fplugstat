@@ -334,12 +334,12 @@ var fplugstatd = {
                 panKey: 'shift'
             },
             rangeSelector : { selected : 1 },
-            title : { text: "電力 (時間毎)" },
+            title : { text: "電力量 (時間毎)" },
             xAxis : {
                 title: {text : "24時間分のデータ(右が古い)"},
                 allowDecimals: false
             },
-            yAxis : {title: {text : "電力(W)"}},
+            yAxis : {title: {text : "電力量(Wh)"}},
             series: [
                {
                   name: fplugstatd.current_device,
