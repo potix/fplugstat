@@ -75,7 +75,7 @@ static int api_cb(struct evhttp_request *req, const char *decoded_path, enum evh
 static void create_active_device_response(const char *device_name, const char *device_address, void *cb_arg);
 static void create_stat_store_response(time_t stat_time, double temperature,
    unsigned int humidity, unsigned int illuminance, double rwatt, void *cb_arg);
-static void create_hourly_power_total_response(int idx, double watt, unsigned char reliability, void *cb_arg);
+static void create_hourly_power_total_response(int idx, unsigned short watt, unsigned char reliability, void *cb_arg);
 static void create_hourly_other_response(int idx, double temperature, unsigned int humidity, unsigned int illuminance, void *cb_arg);
 
 content_type_map_t content_types[] = {
@@ -597,7 +597,7 @@ create_stat_store_response(
 static void
 create_hourly_power_total_response(
     int idx,
-    double watt,
+    unsigned short watt,
     unsigned char reliability,
     void *cb_arg)
 {
@@ -611,7 +611,7 @@ create_hourly_power_total_response(
 		evbuffer_add(api_callback_arg->response, ",", 1);
 	}
 	len = snprintf(buf, sizeof(buf),
-            "{\"index\":%d,\"reliability\":%u,\"watt\":%lf}",
+            "{\"index\":%d,\"reliability\":%u,\"watt\":%u}",
             idx, reliability, watt);
 	evbuffer_add(api_callback_arg->response, buf, len);
 	api_callback_arg->idx++;

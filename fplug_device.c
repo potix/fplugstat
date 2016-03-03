@@ -475,7 +475,7 @@ fplug_device_hourly_power_total_foreach(
     const char *device_address,
     struct tm *end_tm,
     int init,
-    void (*foreach_cb)(int idx, double watt, unsigned char reliability, void *cb_arg),
+    void (*foreach_cb)(int idx, unsigned short watt, unsigned char reliability, void *cb_arg),
     void *cb_arg)
 {
 	bluetooth_device_t *bluetooth_device;
@@ -566,7 +566,7 @@ fplug_device_hourly_power_total_foreach(
 	}
 	fplug_hourly_power_total_data_edt = (fplug_hourly_power_total_data_edt_t *)(response_edata_ptr + 2);
 	for (i = 0; i < 24; i++) {
-		foreach_cb(i, ((int)fplug_hourly_power_total_data_edt->watt), fplug_hourly_power_total_data_edt->reliability, cb_arg);
+		foreach_cb(i, fplug_hourly_power_total_data_edt->watt, fplug_hourly_power_total_data_edt->reliability, cb_arg);
 		fplug_hourly_power_total_data_edt++;
 	}
 	
