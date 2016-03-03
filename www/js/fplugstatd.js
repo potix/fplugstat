@@ -383,6 +383,10 @@ $(document).ready(function(){
     });
     $("#sidebar-fplug-realtime").click(function(event) {
         fplugstatd.select_view("body-fplug-realtime", $(event.target).attr("id"));
+        if (fplugstatd.realtime_interval != null) {
+            clearInterval(fplugstatd.realtime_interval);
+            fplugstatd.realtime_interval = null;
+        }
         if (fplugstatd.hourly_interval != null) {
             clearInterval(fplugstatd.hourly_interval);
             fplugstatd.hourly_interval = null;
@@ -398,6 +402,10 @@ $(document).ready(function(){
         if (fplugstatd.realtime_interval != null) {
             clearInterval(fplugstatd.realtime_interval);
             fplugstatd.realtime_interval = null;
+        }
+        if (fplugstatd.hourly_interval != null) {
+            clearInterval(fplugstatd.hourly_interval);
+            fplugstatd.hourly_interval = null;
         }
         fplugstatd.get_hourly_power_values();
         fplugstatd.get_hourly_other_values();
@@ -439,6 +447,9 @@ $(document).ready(function(){
         }
         fplugstatd.current_device = $("#sidebar-fplug-device").val();
         fplugstatd.get_realtime_values();
+        fplugstatd.realtime_interval = setInterval(function(){
+            fplugstatd.get_realtime_values();
+        }, 1000 * 10);
         fplugstatd.get_hourly_power_values();
         fplugstatd.get_hourly_other_values();
     }); 

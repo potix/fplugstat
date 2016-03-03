@@ -651,7 +651,7 @@ fplug_device_hourly_other_foreach(
 			fplug_hourly_other_data_edt++;
 			continue;
 		}
-		foreach_cb(i, ((int)fplug_hourly_other_data_edt->temperature)/10, fplug_hourly_other_data_edt->humidity, fplug_hourly_other_data_edt->illuminance, cb_arg);
+		foreach_cb(i, ((double)fplug_hourly_other_data_edt->temperature)/10, fplug_hourly_other_data_edt->humidity, fplug_hourly_other_data_edt->illuminance, cb_arg);
 		fplug_hourly_other_data_edt++;
 	}
 	
@@ -855,7 +855,7 @@ bluetooth_device_realtime_stat(
 				continue;
 			}
 			v = *((unsigned short *)edt_ptr);
-			temperature = ((int)v)/10;
+			temperature = ((double)v)/10;
 			break;
 		case HUMIDITY:
 			if (pdc < 1) {
@@ -880,14 +880,14 @@ bluetooth_device_realtime_stat(
 				continue;
 			}
 			v = *((unsigned short *)edt_ptr);
-			rwatt = ((int)v)/10;
+			rwatt = ((double)v)/10;
 			break;
 		default:
 			ABORT("not reached");
 			/* NOT REACHED */
 		}
 	}
-	LOG(LOG_DEBUG, "stat: temperature = %llf, humidity = %u, illuminance = %u, rwatt = %llf", temperature, humidity, illuminance, rwatt);
+	LOG(LOG_DEBUG, "stat: temperature = %llf, humidity = %u, illuminance = %u, rwatt = %lf", temperature, humidity, illuminance, rwatt);
 	if (stat_store_stat_add(bluetooth_device->stat_store, now, temperature, humidity, illuminance, rwatt)) {
 		LOG(LOG_ERR, "failed in add storage of stat");
 		error += 256;
