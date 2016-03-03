@@ -54,7 +54,7 @@ var fplugstatd = {
             fplugstatd.hourly_watt_values = [];
             for (var i = 0; i < msg.length; i++ ) {
                 elm = msg[i];
-                fplugstatd.hourly_watt_values.push([elm.index, elm.watt]);
+                fplugstatd.hourly_watt_values.push([23 - elm.index, elm.watt]);
             }
             fplugstatd.draw_hourly_watt_chart();
         });
@@ -71,9 +71,9 @@ var fplugstatd = {
             fplugstatd.hourly_illuminance_values = [];
             for (var i = 0; i < msg.length; i++ ) {
                 elm = msg[i];
-                fplugstatd.hourly_temperature_values.push([elm.index, elm.temperature]);
-                fplugstatd.hourly_humidity_values.push([elm.index, elm.humidity]);
-                fplugstatd.hourly_illuminance_values.push([elm.index, elm.illuminance]);
+                fplugstatd.hourly_temperature_values.push([23 - elm.index, elm.temperature]);
+                fplugstatd.hourly_humidity_values.push([23 - elm.index, elm.humidity]);
+                fplugstatd.hourly_illuminance_values.push([23 - elm.index, elm.illuminance]);
             }
             fplugstatd.draw_hourly_temperature_chart();
             fplugstatd.draw_hourly_humidity_chart();
@@ -249,8 +249,9 @@ var fplugstatd = {
             rangeSelector : { selected : 1 },
             title : { text: "温度 (時間毎)" },
             xAxis : {
-                title: {text : "24時間分のデータ(右が古い)"},
-                allowDecimals: false
+                title: {text : "24時間分のデータ(左が古い)"},
+                allowDecimals: false,
+                reversed: true
             },
             yAxis : { title: {text : "温度(℃)"} },
             series: [
@@ -276,8 +277,9 @@ var fplugstatd = {
             rangeSelector : { selected : 1 },
             title : { text: "湿度 (時間毎)" },
             xAxis : {
-                title: {text : "24時間分のデータ(右が古い)"},
-                allowDecimals: false
+                title: {text : "24時間分のデータ(左が古い)"},
+                allowDecimals: false,
+                reversed: true
             },
             yAxis : {
                 title: {text : "湿度(%)"},
@@ -306,8 +308,9 @@ var fplugstatd = {
             rangeSelector : { selected : 1 },
             title : { text: "照度 (時間毎)" },
             xAxis : {
-                title: {text : "24時間分のデータ(右が古い)"},
-                allowDecimals: false
+                title: {text : "24時間分のデータ(左が古い)"},
+                allowDecimals: false,
+                reversed: true
             },
             yAxis : {
                 title: {text : "照度(ルクス)"},
@@ -336,8 +339,9 @@ var fplugstatd = {
             rangeSelector : { selected : 1 },
             title : { text: "電力量 (時間毎)" },
             xAxis : {
-                title: {text : "24時間分のデータ(右が古い)"},
-                allowDecimals: false
+                title: {text : "24時間分のデータ(左が古い)"},
+                allowDecimals: false,
+                reversed: true
             },
             yAxis : {title: {text : "電力量(Wh)"}},
             series: [

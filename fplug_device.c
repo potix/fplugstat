@@ -566,6 +566,11 @@ fplug_device_hourly_power_total_foreach(
 	}
 	fplug_hourly_power_total_data_edt = (fplug_hourly_power_total_data_edt_t *)(response_edata_ptr + 2);
 	for (i = 0; i < 24; i++) {
+		if (fplug_hourly_power_total_data_edt->watt == 0 ||
+                    fplug_hourly_power_total_data_edt->reliability == 1) {
+			fplug_hourly_power_total_data_edt++;
+			continue;
+		}
 		foreach_cb(i, fplug_hourly_power_total_data_edt->watt, fplug_hourly_power_total_data_edt->reliability, cb_arg);
 		fplug_hourly_power_total_data_edt++;
 	}
