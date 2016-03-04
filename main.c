@@ -246,7 +246,6 @@ terminate(
 
 	if (http_server_stop(fplugstatd->http_server)) {
 		LOG(LOG_ERR, "failed in stop http server");
-
 	}
 	if (fplug_device_polling_stop(fplugstatd->fplug_device)) {
 		LOG(LOG_ERR, "failed in stop polling to fplug");

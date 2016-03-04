@@ -20,16 +20,28 @@ var fplugstatd = {
     hourly_humidity_values: {},
     hourly_illuminance_values: {},
     hourly_watt_values: {},
+    date_format: function(date) {
+       var year = date.getFullYear();  
+       var month = ("00" + (date.getMonth() + 1)).slice(-2);  
+       var day = ("00" + date.getDate()).slice(-2);  
+       var str = "" + year +  month +  day + "00" + "00" + "00";  
+       return str
+    },
     get_realtime_values: function() {
         for (var j = 0; j < fplugstatd.devicies.length; j++) {
+            var data = { address : fplugstatd.devicies[j].address };
+            if (fplugstatd.select_start_end_realtime) {
+                 data.start = fplugstatd.date_format(fplugstatd.select_start_realtime_date);
+                 data.end = fplugstatd.date_format(fplugstatd.select_end_realtime_date);
+            }
+            console.log(data);
             $.ajax({
                 method: "POST",
                 url: "/api/device/realtime",
-                data: { address : fplugstatd.devicies[j].address },
+                data: data,
                 context: fplugstatd.devicies[j],
                 cache: false
             }).done(function(msg){
-                console.log(this.name);
                 fplugstatd.realtime_temperature_values[this.name] = [];
                 fplugstatd.realtime_humidity_values[this.name] = [];
                 fplugstatd.realtime_illuminance_values[this.name] = [];
@@ -50,10 +62,15 @@ var fplugstatd = {
     },
     get_hourly_power_values: function() {
         for (var j = 0; j < fplugstatd.devicies.length; j++) {
+            var data = { address : fplugstatd.devicies[j].address };
+            if (fplugstatd.select_end_hourly) {
+                 data.end = fplugstatd.date_format(fplugstatd.select_end_hourly_date);
+            }
+            console.log(data);
             $.ajax({
                 method: "POST",
                 url: "/api/device/hourly/power/total",
-                data: { address : fplugstatd.devicies[j].address },
+                data: data,
                 context: fplugstatd.devicies[j],
                 cache: false
             }).done(function(msg){
@@ -68,11 +85,16 @@ var fplugstatd = {
     },
     get_hourly_other_values: function() {
         for (var j = 0; j < fplugstatd.devicies.length; j++) {
+            var data = { address : fplugstatd.devicies[j].address };
+            if (fplugstatd.select_end_hourly) {
+                 data.end = fplugstatd.date_format(fplugstatd.select_end_hourly_date);
+            }
+            console.log(data);
             $.ajax({
                 method: "POST",
                 url: "/api/device/hourly/other",
                 data: { address : fplugstatd.devicies[j].address },
-                context: fplugstatd.devicies[j],
+                context: data,
                 cache: false
             }).done(function(msg){
                 fplugstatd.hourly_temperature_values[this.name] = [];
@@ -354,7 +376,35 @@ var fplugstatd = {
             series: series
         }
         fplugstatd.hourly_watt_chart = new Highcharts.Chart(options);
-    }
+    },
+    start_polling: function(type) {
+        if (fplugstatd.realtime_interval != null) {
+            clearInterval(fplugstatd.realtime_interval);
+            fplugstatd.realtime_interval = null;
+        }
+        if (fplugstatd.hourly_interval != null) {
+            clearInterval(fplugstatd.hourly_interval);
+            fplugstatd.hourly_interval = null;
+        }
+        if (type == "realtime") {
+            fplugstatd.realtime_interval = setInterval(function(){
+                fplugstatd.get_realtime_values();
+            }, 1000 * 60);
+            fplugstatd.get_realtime_values();
+        } else if (type == "hourly") {
+            fplugstatd.hourly_interval = setInterval(function(){
+                fplugstatd.get_hourly_power_values();
+                fplugstatd.get_hourly_other_values();
+            }, 1000 * 600);
+            fplugstatd.get_hourly_power_values();
+            fplugstatd.get_hourly_other_values();
+        }
+    },
+    select_start_end_realtime: false,
+    select_start_realtime_date: null,
+    select_end_realtime_date: null,
+    select_end_hourly: false,
+    select_end_hourly_date: null
 }
 
 $(document).ready(function(){
@@ -383,54 +433,34 @@ $(document).ready(function(){
     $("#body-fplug-hourly-tabs").tabs();
     $("#select-start-realtime-datepicker").datepicker({
         showAnim: "slideDown",
-        showOn: "both"
+        showOn: "both",
+        dateFormat: "yy/mm/dd"
     });
     $("#select-end-realtime-datepicker").datepicker({
         showAnim: "slideDown",
-        showOn: "both"
+        showOn: "both",
+        dateFormat: "yy/mm/dd"
     });
     $("#select-end-hourly-datepicker").datepicker({
         showAnim: "slideDown",
-        showOn: "both"
+        showOn: "both",
+        dateFormat: "yy/mm/dd"
     });
     $("#body-fplug-control-device").change(function() {
         fplugstatd.current_control_device = {
             address : $("#body-fplug-control-device").val(),
             name:  $("#body-fplug-control-device option:selected").text()
         };
+	return false;
     });
     $("#sidebar-fplug-realtime").click(function(event) {
         fplugstatd.select_view("body-fplug-realtime", $(event.target).attr("id"));
-        if (fplugstatd.realtime_interval != null) {
-            clearInterval(fplugstatd.realtime_interval);
-            fplugstatd.realtime_interval = null;
-        }
-        if (fplugstatd.hourly_interval != null) {
-            clearInterval(fplugstatd.hourly_interval);
-            fplugstatd.hourly_interval = null;
-        }
-        fplugstatd.get_realtime_values();
-        fplugstatd.realtime_interval = setInterval(function(){
-            fplugstatd.get_realtime_values();
-        }, 1000 * 60);
+        fplugstatd.start_polling("realtime");
 	return false;
     });
     $("#sidebar-fplug-hourly").click(function(event) {
         fplugstatd.select_view("body-fplug-hourly", $(event.target).attr("id"));
-        if (fplugstatd.realtime_interval != null) {
-            clearInterval(fplugstatd.realtime_interval);
-            fplugstatd.realtime_interval = null;
-        }
-        if (fplugstatd.hourly_interval != null) {
-            clearInterval(fplugstatd.hourly_interval);
-            fplugstatd.hourly_interval = null;
-        }
-        fplugstatd.get_hourly_power_values();
-        fplugstatd.get_hourly_other_values();
-        fplugstatd.hourly_interval = setInterval(function(){
-            fplugstatd.get_hourly_power_values();
-            fplugstatd.get_hourly_other_values();
-        }, 1000 * 600);
+        fplugstatd.start_polling("hourly");
 	return false;
     });
     $("#sidebar-fplug-control").click(function(event) {
@@ -447,12 +477,50 @@ $(document).ready(function(){
     });
     $("#body-fplug-control-reset").click(function(event) {
         fplugstatd.device_reset();
+        return false;
     });
     $("#body-fplug-control-powerstart").click(function(event) {
         fplugstatd.start_hourly_power_store();
+        return false;
     });
     $("#body-fplug-control-datetimesetting").click(function(event) {
         fplugstatd.device_set_datetime();
+        return false;
+    });
+    $("#refresh-realtime-button").click(function(event) {
+	if ($("#select-start-end-realtime").prop('checked')) {
+            var start =  $("#select-start-realtime-datepicker").datepicker('getDate');
+            var end =  $("#select-end-realtime-datepicker").datepicker('getDate');
+            if (start == null || end == null) {
+                alert("開始日と終了日を入れてください");
+                return false;
+            }
+            fplugstatd.select_start_end_realtime = true;
+            fplugstatd.select_start_realtime_date = new Date(start);
+            fplugstatd.select_end_realtime_date = new Date(end);
+        } else {
+            fplugstatd.select_start_end_realtime = false;
+            fplugstatd.select_start_realtime_date = null;
+            fplugstatd.select_end_realtime_date = null;
+        }
+        fplugstatd.start_polling("realtime");
+	return false;
+    });
+    $("#refresh-hourly-button").click(function(event) {
+	if ($("#select-end-hourly").prop('checked')) {
+            var end =  $("#select-end-hourly-datepicker").datepicker('getDate');
+            if (end == null) {
+                alert("終了日を入れてください");
+                return false;
+            }
+            fplugstatd.select_end_hourly = true;
+            fplugstatd.select_end_hourly_date = new Date(end);
+        } else {
+            fplugstatd.select_end_hourly = false;
+            fplugstatd.select_end_hourly_date = null;
+        }
+        fplugstatd.start_polling("hourly");
+        return false;
     });
     fplugstatd.select_view("body-fplug-realtime", "sidebar-fplug-realtime");
     $.ajax({
@@ -460,18 +528,12 @@ $(document).ready(function(){
         url: "/api/devicies",
         cache: false
     }).done(function(msg) {
-        console.log(msg);
         fplugstatd.devicies = msg;
         for (var i = 0; i < msg.length; i++) {
             $("#body-fplug-control-device").append($("<option>").val(msg[i].address).text(msg[i].name));
         }
         fplugstatd.current_control_device = $("#body-fplug-control-device").val();
-        fplugstatd.get_realtime_values();
-        fplugstatd.realtime_interval = setInterval(function(){
-            fplugstatd.get_realtime_values();
-        }, 1000 * 60);
-        fplugstatd.get_hourly_power_values();
-        fplugstatd.get_hourly_other_values();
+        fplugstatd.start_polling("realtime");
     }); 
 });
 
