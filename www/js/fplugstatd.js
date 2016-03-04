@@ -469,7 +469,7 @@ $(document).ready(function(){
         fplugstatd.get_realtime_values();
         fplugstatd.realtime_interval = setInterval(function(){
             fplugstatd.get_realtime_values();
-        }, 1000 * 10);
+        }, 1000 * 60);
         fplugstatd.get_hourly_power_values();
         fplugstatd.get_hourly_other_values();
     }); 
