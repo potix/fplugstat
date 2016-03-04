@@ -55,3 +55,6 @@ body {
 	width: 100%;
 	background: #daa520;
 }
+.datepicker {
+	display: inline-block;
+}

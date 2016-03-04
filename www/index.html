@@ -17,65 +17,74 @@
             <div id="sidebar">
                 <div id="sidebar-fplug">  
                     <div class="menu-title">FPLUG</div>
-                    <div class="menu-child-select">デバイス: <select id="sidebar-fplug-device"></select></div>
                     <ou>
-	    	        <li class="menu-child-link" id="sidebar-fplug-realtime" > リアルタイム情報</li>
-		        <li class="menu-child-link" id="sidebar-fplug-hourly"> 時間毎の情報 </li>
-		        <li class="menu-child-link" id="sidebar-fplug-control"> 制御 </li>
+	    	        <li class="menu-child-link" id="sidebar-fplug-realtime" >リアルタイム情報</li>
+		        <li class="menu-child-link" id="sidebar-fplug-hourly">時間毎の情報</li>
+		        <li class="menu-child-link" id="sidebar-fplug-control">制御</li>
                     </ou>
                 </div>
             </div>
             <div id="body">
                 <div id="body-fplug">
-		    <div id="body-fplug-realtime"> 
-                        <ul>
-                            <li id="body-fplug-realtime-temperature"><a href="#body-fplug-realtime-temperature-fragment">温度(リアルタイム)</a></li>
-                            <li id="body-fplug-realtime-humidity"><a href="#body-fplug-realtime-humidity-fragment">湿度(リアルタイム)</a></li>
-                            <li id="body-fplug-realtime-illuminance"><a href="#body-fplug-realtime-illuminance-fragment">照度(リアルタイム)</a></li>
-                            <li id="body-fplug-realtime-watt"><a href="#body-fplug-realtime-watt-fragment">電力(リアルタイム)</a></li>
-                       </ul>
-                       <div id="body-fplug-realtime-temperature-fragment">
-                           <div id="body-fplug-realtime-temperature-chart">
+                    <div id="body-fplug-realtime">
+                        <div id="body-fplug-realtime-tabs"> 
+                            <ul>
+                                <li id="body-fplug-realtime-temperature"><a href="#body-fplug-realtime-temperature-fragment">温度(リアルタイム)</a></li>
+                                <li id="body-fplug-realtime-humidity"><a href="#body-fplug-realtime-humidity-fragment">湿度(リアルタイム)</a></li>
+                                <li id="body-fplug-realtime-illuminance"><a href="#body-fplug-realtime-illuminance-fragment">照度(リアルタイム)</a></li>
+                                <li id="body-fplug-realtime-watt"><a href="#body-fplug-realtime-watt-fragment">電力(リアルタイム)</a></li>
+                           </ul>
+                           <div id="body-fplug-realtime-temperature-fragment">
+                               <div id="body-fplug-realtime-temperature-chart">
+                               </div>
                            </div>
-                       </div>
-                       <div id="body-fplug-realtime-humidity-fragment">
-                           <div id="body-fplug-realtime-humidity-chart">
+                           <div id="body-fplug-realtime-humidity-fragment">
+                               <div id="body-fplug-realtime-humidity-chart">
+                               </div>
                            </div>
-                       </div>
-                       <div id="body-fplug-realtime-illuminance-fragment">
-                           <div id="body-fplug-realtime-illuminance-chart">
+                           <div id="body-fplug-realtime-illuminance-fragment">
+                               <div id="body-fplug-realtime-illuminance-chart">
+                               </div>
                            </div>
-                       </div>
-                       <div id="body-fplug-realtime-watt-fragment">
-                           <div id="body-fplug-realtime-watt-chart">
+                           <div id="body-fplug-realtime-watt-fragment">
+                               <div id="body-fplug-realtime-watt-chart">
+                               </div>
                            </div>
-                       </div>
+                        </div>
+                       <input type="checkbox" name="select-end-realtime" value="select">指定日の間の情報を取得</input><br>
+                       開始日: <input type="text" id="select-start-realtime-datepicker" class="datepicker"></input>
+                       終了日: <input type="text" id="select-end-realtime-datepicker" class="datepicker"></input>
                     </div>
-		    <div id="body-fplug-hourly"> 
-                        <ul>
-                            <li id="body-fplug-hourly-temperature"><a href="#body-fplug-hourly-temperature-fragment"><span>温度(1時間毎)</span></a></li>
-                            <li id="body-fplug-hourly-humidity"><a href="#body-fplug-hourly-humidity-fragment"><span>湿度(1時間毎)</span></a></li>
-                            <li id="body-fplug-hourly-illuminance"><a href="#body-fplug-hourly-illuminance-fragment"><span>照度(1時間毎)</span></a></li>
-                            <li id="body-fplug-hourly-watt"><a href="#body-fplug-hourly-watt-fragment"><span>電力量(1時間毎)<span></a></li>
-                       </ul>
-                       <div id="body-fplug-hourly-temperature-fragment">
-                           <div id="body-fplug-hourly-temperature-chart">
+                    <div id="body-fplug-hourly">
+		        <div id="body-fplug-hourly-tabs"> 
+                            <ul>
+                                <li id="body-fplug-hourly-temperature"><a href="#body-fplug-hourly-temperature-fragment"><span>温度(1時間毎)</span></a></li>
+                                <li id="body-fplug-hourly-humidity"><a href="#body-fplug-hourly-humidity-fragment"><span>湿度(1時間毎)</span></a></li>
+                                <li id="body-fplug-hourly-illuminance"><a href="#body-fplug-hourly-illuminance-fragment"><span>照度(1時間毎)</span></a></li>
+                                <li id="body-fplug-hourly-watt"><a href="#body-fplug-hourly-watt-fragment"><span>電力量(1時間毎)<span></a></li>
+                           </ul>
+                           <div id="body-fplug-hourly-temperature-fragment">
+                               <div id="body-fplug-hourly-temperature-chart">
+                               </div>
                            </div>
-                       </div>
-                       <div id="body-fplug-hourly-humidity-fragment">
-                           <div id="body-fplug-hourly-humidity-chart">
+                           <div id="body-fplug-hourly-humidity-fragment">
+                               <div id="body-fplug-hourly-humidity-chart">
+                               </div>
                            </div>
-                       </div>
-                       <div id="body-fplug-hourly-illuminance-fragment">
-                           <div id="body-fplug-hourly-illuminance-chart">
+                           <div id="body-fplug-hourly-illuminance-fragment">
+                               <div id="body-fplug-hourly-illuminance-chart">
+                               </div>
                            </div>
-                       </div>
-                       <div id="body-fplug-hourly-watt-fragment">
-                           <div id="body-fplug-hourly-watt-chart">
+                           <div id="body-fplug-hourly-watt-fragment">
+                               <div id="body-fplug-hourly-watt-chart">
+                               </div>
                            </div>
-                       </div>
+                        </div>
+                        <input type="checkbox" name="select-end-hourly" value="select">指定日から過去24時間のデータを取得</input><br>
+                        終了日: <input type="text" id="select-end-hourly-datepicker" class="datepicker"></div>
                     </div>
 		    <div id="body-fplug-control">
+                        <div class="body-fplug-control-select">デバイス: <select id="body-fplug-control-device"></select></div>
 			<button type="button" id="body-fplug-control-reset">リセット</button><br /><br /> 
 			<button type="button" id="body-fplug-control-powerstart">積算電力蓄積の開始</button><br /><br /> 
 			<button type="button" id="body-fplug-control-datetimesetting">時刻設定</button><br /><br />
