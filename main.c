@@ -118,6 +118,7 @@ main(
 
 	// シグナルマスク
 	sigemptyset(&fplugstatd.sig_block_mask);
+        sigaddset(&fplugstatd.sig_block_mask, SIGPIPE);
 	pthread_sigmask(SIG_BLOCK, &fplugstatd.sig_block_mask, NULL);
 
 	// int, termシグナル受信時の処理イベント
