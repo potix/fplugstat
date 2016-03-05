@@ -49,6 +49,7 @@
 #define API_DEVICIE_DATETIME_URL           "device/datetime"
 
 struct http_server {
+	struct event_base *event_base;
 	struct evhttp *evhttp;
 	struct evhttp_bound_socket *bound_socket;
 	char address[NI_MAXHOST];
@@ -98,7 +99,6 @@ http_server_create(
     fplug_device_t *fplug_device)
 {
 	http_server_t *new = NULL;
-	struct evhttp *evhttp = NULL;
 	char address[NI_MAXHOST];
 	unsigned short port;
         char resource_path[URL_PATH_MAX];
@@ -115,10 +115,6 @@ http_server_create(
 		goto fail;
 	}
 	memset(new, 0, sizeof(http_server_t));
-	if ((evhttp = evhttp_new(event_base)) == NULL) {
-		LOG(LOG_ERR, "failed in create evhttp");
-		goto fail;
-	}
         if (config_get_string(config, address, sizeof(address),
 	    "controller", "httpAddress", DEFAULT_HTTP_ADDRESS, sizeof(address) - 1)) {
                 LOG(LOG_ERR, "faile in get http address from config");
@@ -133,21 +129,17 @@ http_server_create(
                 LOG(LOG_ERR, "faile in get resource path from config");
                 goto fail;
         }
-	evhttp_set_gencb(evhttp, default_cb, new);
-	new->evhttp = evhttp;
 	strlcpy(new->address, address, sizeof(new->address));
 	new->port = port;
 	strlcpy(new->resource_path, resource_path, sizeof(new->resource_path));
         new->fplug_device = fplug_device;
+	new->event_base = event_base;
 	*http_server = new;
 
 	return 0;
 
 fail:
 	
-	if (evhttp) {
-		evhttp_free(evhttp);
-	}
 	if (new) {
 		free(new);	
 	}
@@ -159,12 +151,19 @@ int
 http_server_start(
     http_server_t *http_server)
 {
+	struct evhttp *evhttp = NULL;
 	struct evhttp_bound_socket *bound_socket = NULL;
 
 	if (http_server == NULL) {
 		errno = EINVAL;
 		return 1;
 	}
+	if ((evhttp = evhttp_new(http_server->event_base)) == NULL) {
+		LOG(LOG_ERR, "failed in create evhttp");
+		goto fail;
+	}
+	http_server->evhttp = evhttp;
+	evhttp_set_gencb(evhttp, default_cb, http_server->evhttp);
 	if ((bound_socket = evhttp_bind_socket_with_handle(http_server->evhttp, http_server->address, http_server->port)) == NULL) {
                	LOG(LOG_ERR, "faile in bind socket %s:%d", http_server->address, http_server->port);
 		goto fail;
@@ -174,6 +173,9 @@ http_server_start(
 	return 0;
 
 fail:
+	if (evhttp) {
+		evhttp_free(evhttp);
+	}
 	if (bound_socket) {
 		evhttp_del_accept_socket(http_server->evhttp, bound_socket);
 	}
