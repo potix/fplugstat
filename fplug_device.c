@@ -153,7 +153,10 @@ fplug_device_create(
 		if (stat_store_create(&bluetooth_device->stat_store, config)) {
                 	LOG(LOG_ERR, "faile in create stat store");
 			goto fail;
-		} 
+		}
+		if (stat_store_restore(bluetooth_device->stat_store, bluetooth_device->device_address)) {
+                	LOG(LOG_WARNING, "faile in restore stat");
+		}
         }
 	*fplug_device = new;
 
@@ -892,10 +895,14 @@ bluetooth_device_realtime_stat(
 			/* NOT REACHED */
 		}
 	}
-	LOG(LOG_DEBUG, "stat: temperature = %llf, humidity = %u, illuminance = %u, rwatt = %lf", temperature, humidity, illuminance, rwatt);
+	LOG(LOG_DEBUG, "stat: stat_time = %ld, temperature = %llf, humidity = %u, illuminance = %u, rwatt = %lf", now, temperature, humidity, illuminance, rwatt);
 	if (stat_store_stat_add(bluetooth_device->stat_store, now, temperature, humidity, illuminance, rwatt)) {
 		LOG(LOG_ERR, "failed in add storage of stat");
 		error += 256;
+	}
+	if (stat_store_stat_save(bluetooth_device->stat_store, bluetooth_device->device_address, now, temperature, humidity, illuminance, rwatt)) {
+		LOG(LOG_ERR, "failed in save stat");
+		error += 1024;
 	}
 
 	return error;
@@ -1032,8 +1039,7 @@ device_write_request(
     unsigned char *frame,
     size_t frame_len)
 {
-        size_t wlen = 0;
-	int tmp_wlen;
+        ssize_t wlen;
 
 	ASSERT(frame != NULL);
 
@@ -1041,18 +1047,13 @@ device_write_request(
 		return 0;
 	}
 	LOG_DUMP(LOG_DEBUG, frame, frame_len);
-	wlen = 0;
-	while (wlen != frame_len) {
-		LOG(LOG_DEBUG, "trace: start write");
-		tmp_wlen = write(sd, &frame[wlen], frame_len - wlen);
-		LOG(LOG_DEBUG, "trace: end write");
-		if (tmp_wlen < 0) {
-			LOG(LOG_ERR, "can not write echonet lite request frame");
-			return 1;
-		}
-		wlen += tmp_wlen;
+	LOG(LOG_DEBUG, "trace: start write");
+	wlen = write(sd, frame, frame_len);
+	LOG(LOG_DEBUG, "trace: end write");
+	if (wlen != frame_len) {
+		LOG(LOG_ERR, "can not write echonet lite request frame (wlen = %lld)", wlen);
+		return 1;
 	}
-	/* debug */
 
         return 0;
 }
@@ -1063,24 +1064,19 @@ device_read_response(
     unsigned char *buffer,
     size_t buffer_len)
 {
-        size_t rlen = 0;
-	int tmp_rlen;
+        ssize_t rlen = 0;
 
 	ASSERT(buffer != NULL);
 
 	if (buffer_len == 0) {
 		return 0;
 	}
-	rlen = 0;
-	while (rlen != buffer_len) {
-		LOG(LOG_DEBUG, "trace: start read");
-		tmp_rlen = read(sd, &buffer[rlen], buffer_len - rlen);
-		LOG(LOG_DEBUG, "trace: end read");
-		if (tmp_rlen < 0) {
-			LOG(LOG_ERR, "can not read echonet lite response");
-			return 1;
-		}
-		rlen += tmp_rlen;
+	LOG(LOG_DEBUG, "trace: start read");
+	rlen = read(sd, buffer, buffer_len);
+	LOG(LOG_DEBUG, "trace: end read");
+	if (rlen != buffer_len) {
+		LOG(LOG_ERR, "can not read echonet lite response (rlen = %lld), rlen");
+		return 1;
 	}
 	LOG_DUMP(LOG_DEBUG, buffer, buffer_len);
 

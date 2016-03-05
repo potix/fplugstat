@@ -11,7 +11,7 @@
  * thread safeではないので注意        */
 
 #ifndef CONFIG_MAX_STR_LEN
-#define CONFIG_MAX_STR_LEN 512
+#define CONFIG_MAX_STR_LEN 1024
 #endif
 #define CONFIG_LINE_BUF ((CONFIG_MAX_STR_LEN + 1) * 2)
 
