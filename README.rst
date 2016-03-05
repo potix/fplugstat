@@ -48,6 +48,8 @@ usage
 start daemon
 ------------
 
+::
+
     sudo fplugstatd -c /etc/fplugstatd.conf
 
 
