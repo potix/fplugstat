@@ -169,6 +169,7 @@ http_server_start(
 		goto fail;
 	}
 	http_server->bound_socket = bound_socket;
+	LOG(LOG_INFO, "bind address = %s, port = %d", http_server->address, http_server->port);
 
 	return 0;
 

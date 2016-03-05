@@ -103,6 +103,7 @@ main(
 	}
 
 	// ここから先はログに出す
+	LOG(LOG_INFO, "start fplugstatd");
 
 	// bluetoothデバイス初期化
         if (fplug_device_create(&fplugstatd.fplug_device, fplugstatd.config, fplugstatd.event_base)) {
