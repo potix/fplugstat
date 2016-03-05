@@ -1,12 +1,15 @@
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <libgen.h>
 
+#include "common_macros.h"
 #include "string_util.h"
+#include "file_util.h"
 
 int
 mkdirs(

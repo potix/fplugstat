@@ -16,6 +16,7 @@
 #include "config.h"
 #include "fplug_device.h"
 #include "http.h"
+#include "version.h"
 
 #ifndef DEFAULT_CONFIG_FILE
 #define DEFAULT_CONFIG_FILE FPLUGSTAT_PATH "/fplugstatd.conf"
@@ -103,7 +104,7 @@ main(
 	}
 
 	// ここから先はログに出す
-	LOG(LOG_INFO, "start fplugstatd");
+	LOG(LOG_INFO, "start fplugstatd version = %lf", FPLUGSTAT_VERSION);
 
 	// bluetoothデバイス初期化
         if (fplug_device_create(&fplugstatd.fplug_device, fplugstatd.config, fplugstatd.event_base)) {
