@@ -34,7 +34,6 @@ var fplugstatd = {
                  data.start = fplugstatd.date_format(fplugstatd.select_start_realtime_date);
                  data.end = fplugstatd.date_format(fplugstatd.select_end_realtime_date);
             }
-            console.log(data);
             $.ajax({
                 method: "POST",
                 url: "/api/device/realtime",
@@ -66,7 +65,6 @@ var fplugstatd = {
             if (fplugstatd.select_end_hourly) {
                  data.end = fplugstatd.date_format(fplugstatd.select_end_hourly_date);
             }
-            console.log(data);
             $.ajax({
                 method: "POST",
                 url: "/api/device/hourly/power/total",
@@ -89,12 +87,11 @@ var fplugstatd = {
             if (fplugstatd.select_end_hourly) {
                  data.end = fplugstatd.date_format(fplugstatd.select_end_hourly_date);
             }
-            console.log(data);
             $.ajax({
                 method: "POST",
                 url: "/api/device/hourly/other",
-                data: { address : fplugstatd.devicies[j].address },
-                context: data,
+                data: data,
+                context: fplugstatd.devicies[j],
                 cache: false
             }).done(function(msg){
                 fplugstatd.hourly_temperature_values[this.name] = [];
@@ -532,7 +529,10 @@ $(document).ready(function(){
         for (var i = 0; i < msg.length; i++) {
             $("#body-fplug-control-device").append($("<option>").val(msg[i].address).text(msg[i].name));
         }
-        fplugstatd.current_control_device = $("#body-fplug-control-device").val();
+        fplugstatd.current_control_device = {
+            address : $("#body-fplug-control-device").val(),
+            name:  $("#body-fplug-control-device option:selected").text()
+        };
         fplugstatd.start_polling("realtime");
     }); 
 });
