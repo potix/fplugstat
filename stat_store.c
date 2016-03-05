@@ -215,7 +215,7 @@ stat_store_stat_save(
 	stat_value.humidity = humidity;  
 	stat_value.illuminance = illuminance;  
 	stat_value.rwatt = rwatt;
-	if ((fd = open(path, O_APPEND|O_CREAT|O_WRONLY)) == -1) {
+	if ((fd = open(path, O_APPEND|O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) == -1) {
 		LOG(LOG_ERR, "failed in open file (path = %s)", path);
 		error = 1;
 		goto last;

@@ -192,6 +192,10 @@ http_server_stop(
 	if (http_server->bound_socket) {
 		evhttp_del_accept_socket(http_server->evhttp, http_server->bound_socket);
 	}
+	if (http_server->evhttp) {
+		evhttp_free(http_server->evhttp);
+		http_server->evhttp = NULL;
+	}
 
 	return 0;
 }
@@ -203,9 +207,6 @@ http_server_destroy(
 	if (http_server == NULL) {
 		errno = EINVAL;
 		return 1;
-	}
-	if (http_server->evhttp) {
-		evhttp_free(http_server->evhttp);
 	}
 	free(http_server);
 
