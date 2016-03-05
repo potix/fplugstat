@@ -40,8 +40,16 @@ usage
 
 ::
 
+    Usage:
+	fplugstatd [-c <config_file_path>] [-F]
+	fplugstatd -D <stat_file_path>
+
+
+start daemon
+------------
+
     sudo fplugstatd -c /etc/fplugstatd.conf
-    
+
 
 api
 ---
@@ -68,6 +76,15 @@ api
     
     * set datetime
     curl -X POST -d "address=<address>" http://127.0.0.1/api/device/datetime
+
+
+dump stat
+---------
+
+::
+
+    ls /var/tmp/data/fplugstatd
+    fplustatd -D <file path of save stat>
 
 
 config sample

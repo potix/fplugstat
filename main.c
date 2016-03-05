@@ -219,7 +219,7 @@ parse_command_arguments(
 	ASSERT(argv != NULL);
 	ASSERT(fplugstatd != NULL);
 
-	while ((opt = getopt(argc, argv, "c:FD:")) != -1) {
+	while ((opt = getopt(argc, argv, "c:FD:h")) != -1) {
 		switch (opt) {
 		case 'c':
 			fplugstatd->config_file = optarg;
@@ -230,6 +230,9 @@ parse_command_arguments(
 		case 'D':
 			fplugstatd->dump_file = optarg;
 			break;
+		case 'h':
+			// usage
+			return 1;
 		default:
 			return 1;
 		}
@@ -246,7 +249,7 @@ usage(
 
 	fprintf(
 	    stderr,
-	    "Usage:\r\n\t%s [-c <config_file_path>] [-F]\r\n%s -D <stat_file_path>",
+	    "Usage:\n\t%s [-c <config_file_path>] [-F]\n\t%s -D <stat_file_path>\n",
 	    command, command);
 }
 
