@@ -151,6 +151,8 @@ main(
 	event_base_dispatch(fplugstatd.event_base);
 	LOG(LOG_DEBUG, "finish event loop");
 	
+	LOG(LOG_INFO, "stop fplugstatd");
+
 	// 解放処理
 	if (fplugstatd.sig_term_event) {
 		event_free(fplugstatd.sig_term_event);
