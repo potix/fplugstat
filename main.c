@@ -24,6 +24,7 @@
 
 struct fplugstatd {
 	const char *config_file;
+	const char *dump_file;
 	int foreground;
         struct event_base *event_base;
 	fplug_device_t *fplug_device;
@@ -52,7 +53,7 @@ main(
 
 	// 構造体初期化
 	if (initialize_fplugstatd(&fplugstatd)) {
-		fprintf(stderr, "failed in initialize");
+		fprintf(stderr, "failed in initialize\n");
 		return 1;
 	}
 
@@ -62,10 +63,17 @@ main(
 		return 1;
 	}
 
+	if (fplugstatd.dump_file) {
+		if (stat_store_dump(fplugstatd.dump_file)) {
+			fprintf(stderr, "failed in dump stat data\n");
+		}
+		goto last;
+	}
+
 	// デーモン化
         if (!fplugstatd.foreground) {
                 if (daemon(1,1)) {
-                        fprintf(stderr, "failed in daemonaize");
+                        fprintf(stderr, "failed in daemonaize\n");
                         return 1;
                 }
                 setsid();
@@ -73,33 +81,33 @@ main(
 
 	// コンフィグコンテキストの生成
 	if (config_create(&fplugstatd.config, fplugstatd.config_file)) {
-		fprintf(stderr, "failed in create config");
+		fprintf(stderr, "failed in create config\n");
 		return 1;
 	}
 
 	// コンフィグの読み込み
 	if (config_load(fplugstatd.config)) {
-		fprintf(stderr, "failed in load config");
+		fprintf(stderr, "failed in load config\n");
 		return 1;
 	}
 
 	if (config_get_string(fplugstatd.config, facility, sizeof(facility), "global", "syslogFacility",  "daemon", sizeof(facility) - 1)) {
-		fprintf(stderr, "failed in get facility from config");
+		fprintf(stderr, "failed in get facility from config\n");
 		return 1;
 	}
 
 	if (config_get_string(fplugstatd.config, serverity, sizeof(serverity), "global", "syslogSeverity",  "warning", sizeof(serverity) - 1)) {
-		fprintf(stderr, "failed in get serverity from config");
+		fprintf(stderr, "failed in get serverity from config\n");
 		return 1;
 	}
 
 	if (logger_open(argv[0], LOG_PID, facility)) {
-		fprintf(stderr, "failed in open logger");
+		fprintf(stderr, "failed in open logger\n");
 		return 1;
 	}
 
 	if (logger_filter(serverity)) {
-		fprintf(stderr, "failed in set logger filter");
+		fprintf(stderr, "failed in set logger filter\n");
 		return 1;
 	}
 
@@ -153,6 +161,7 @@ main(
 	
 	LOG(LOG_INFO, "stop fplugstatd");
 
+last:
 	// 解放処理
 	if (fplugstatd.sig_term_event) {
 		event_free(fplugstatd.sig_term_event);
@@ -210,13 +219,16 @@ parse_command_arguments(
 	ASSERT(argv != NULL);
 	ASSERT(fplugstatd != NULL);
 
-	while ((opt = getopt(argc, argv, "c:F")) != -1) {
+	while ((opt = getopt(argc, argv, "c:FD:")) != -1) {
 		switch (opt) {
 		case 'c':
 			fplugstatd->config_file = optarg;
 			break;
 		case 'F':
 			fplugstatd->foreground = 1;
+			break;
+		case 'D':
+			fplugstatd->dump_file = optarg;
 			break;
 		default:
 			return 1;
@@ -234,8 +246,8 @@ usage(
 
 	fprintf(
 	    stderr,
-	    "Usage: %s [-c <config_file_path] [-F]\n",
-	    command);
+	    "Usage:\r\n\t%s [-c <config_file_path>] [-F]\r\n%s -D <stat_file_path>",
+	    command, command);
 }
 
 

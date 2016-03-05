@@ -176,7 +176,7 @@ fail:
 	}
 	if (new) {
 		if (new->polling_event) {
-			free(new->polling_event);
+			event_free(new->polling_event);
 		}
 		free(new);
 	}
@@ -895,7 +895,7 @@ bluetooth_device_realtime_stat(
 			/* NOT REACHED */
 		}
 	}
-	LOG(LOG_DEBUG, "stat: stat_time = %ld, temperature = %llf, humidity = %u, illuminance = %u, rwatt = %lf", now, temperature, humidity, illuminance, rwatt);
+	LOG(LOG_DEBUG, "stat: stat_time = %ld, temperature = %lf, humidity = %u, illuminance = %u, rwatt = %lf", now, temperature, humidity, illuminance, rwatt);
 	if (stat_store_stat_add(bluetooth_device->stat_store, now, temperature, humidity, illuminance, rwatt)) {
 		LOG(LOG_ERR, "failed in add storage of stat");
 		error += 256;
@@ -1051,7 +1051,7 @@ device_write_request(
 	wlen = write(sd, frame, frame_len);
 	LOG(LOG_DEBUG, "trace: end write");
 	if (wlen != frame_len) {
-		LOG(LOG_ERR, "can not write echonet lite request frame (wlen = %lld)", wlen);
+		LOG(LOG_ERR, "can not write echonet lite request frame (wlen = %zd)", wlen);
 		return 1;
 	}
 
@@ -1075,7 +1075,7 @@ device_read_response(
 	rlen = read(sd, buffer, buffer_len);
 	LOG(LOG_DEBUG, "trace: end read");
 	if (rlen != buffer_len) {
-		LOG(LOG_ERR, "can not read echonet lite response (rlen = %lld), rlen");
+		LOG(LOG_ERR, "can not read echonet lite response (rlen = %zd), rlen");
 		return 1;
 	}
 	LOG_DUMP(LOG_DEBUG, buffer, buffer_len);

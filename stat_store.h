@@ -31,11 +31,16 @@ int stat_store_stat_foreach(stat_store_t *stat_store, time_t start, time_t end,
 /*
  * statを保存する
  */
-int stat_store_stat_save(stat_store_t *stat_store, char *file_name,
+int stat_store_stat_save(stat_store_t *stat_store, const char *file_name,
     time_t stat_time, double temperature, unsigned int humidity, unsigned int illuminance, double rwatt);
 /*
  * statを復元する
  */
-int stat_store_restore(stat_store_t *stat_store, char *file_name);
+int stat_store_restore(stat_store_t *stat_store, const char *file_name);
+
+/*
+ * statファイルをダンプする
+ */
+int stat_store_dump(const char *file_path);
 
 #endif

@@ -188,7 +188,7 @@ stat_store_stat_foreach(
 int
 stat_store_stat_save(
     stat_store_t *stat_store,
-    char *file_name,
+    const char *file_name,
     time_t stat_time,
     double temperature,
     unsigned int humidity,
@@ -221,11 +221,11 @@ stat_store_stat_save(
 		goto last;
 	}
 	LOG_DUMP(LOG_DEBUG, (unsigned char *)&stat_value, sizeof(stat_value_t));
-	LOG(LOG_DEBUG, "save: stat_time = %ld, temperature = %llf, humidity = %u, illuminance = %u, rwatt = %lf",
+	LOG(LOG_DEBUG, "save: stat_time = %ld, temperature = %lf, humidity = %u, illuminance = %u, rwatt = %lf",
 	    stat_value.stat_time, stat_value.temperature, stat_value.humidity, stat_value.illuminance, stat_value.rwatt);
 	wlen = write(fd, &stat_value, sizeof(stat_value_t));
 	if (wlen != sizeof(stat_value_t)) {
-		LOG(LOG_ERR, "failed in save stat (path = %s, wlen = %lld)", path, wlen);
+		LOG(LOG_ERR, "failed in save stat (path = %s, wlen = %zd)", path, wlen);
 		error = 1;
 		goto last;
 	}
@@ -241,7 +241,7 @@ last:
 int
 stat_store_restore(
     stat_store_t *stat_store,
-    char *file_name)
+    const char *file_name)
 {
 	int error = 0;
 	stat_value_t stat_value;
@@ -282,18 +282,62 @@ stat_store_restore(
 	for (i = 0; i < count; i++) {
 		rlen = read(fd, &stat_value, sizeof(stat_value_t));	
 		if (rlen != sizeof(stat_value_t)) {	
-			LOG(LOG_ERR, "failed in read data (path = %s, rlen = %lld)", path, rlen);
+			LOG(LOG_ERR, "failed in read data (path = %s, rlen = %zd)", path, rlen);
 			error = 1;
 			goto last;
 		}
 		LOG_DUMP(LOG_DEBUG, (unsigned char *)&stat_value, sizeof(stat_value_t));
-		LOG(LOG_DEBUG, "loaded: stat_time = %ld, temperature = %llf, humidity = %u, illuminance = %u, rwatt = %lf",
+		LOG(LOG_DEBUG, "loaded: stat_time = %ld, temperature = %lf, humidity = %u, illuminance = %u, rwatt = %lf",
 		    stat_value.stat_time, stat_value.temperature, stat_value.humidity, stat_value.illuminance, stat_value.rwatt);
 		if (stat_store_stat_add(stat_store, stat_value.stat_time, stat_value.temperature, stat_value.humidity, stat_value.illuminance, stat_value.rwatt)) {
 			LOG(LOG_ERR, "failed in add stat value (path = %s)", path);
 			error = 1;
 			goto last;
 		}
+	}
+	
+last:
+	if (fd != -1) {
+		close(fd);
+	}
+
+	return error;
+}
+
+int
+stat_store_dump(
+    const char *file_path)
+{
+	int error = 0;
+	stat_value_t stat_value;
+	struct stat st;
+	int fd = -1;
+	ssize_t rlen;
+	unsigned long long i, count;
+
+	if (file_path == NULL) {
+		errno = EINVAL;
+		return 1;
+	}
+	if (stat(file_path, &st)) {
+		fprintf(stderr, "failed in stat faile (path = %s)\n", file_path);
+		return 0;
+	}
+	count = st.st_size/sizeof(stat_value_t);
+	if ((fd = open(file_path, O_RDONLY)) == -1) {
+		fprintf(stderr, "failed in open file (path = %s)\n", file_path);
+		error = 1;
+		goto last;
+	}
+	printf("time,temperature,humidity,illuminance,power\r\n");
+	for (i = 0; i < count; i++) {
+		rlen = read(fd, &stat_value, sizeof(stat_value_t));	
+		if (rlen != sizeof(stat_value_t)) {	
+			fprintf(stderr, "failed in read data (path = %s, rlen = %zd)\n", file_path, rlen);
+			error = 1;
+			goto last;
+		}
+		printf("%ld,%lf,%u,%u,%lf\r\n", stat_value.stat_time, stat_value.temperature, stat_value.humidity, stat_value.illuminance, stat_value.rwatt);
 	}
 	
 last:
