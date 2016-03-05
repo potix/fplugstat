@@ -163,7 +163,7 @@ http_server_start(
 		goto fail;
 	}
 	http_server->evhttp = evhttp;
-	evhttp_set_gencb(evhttp, default_cb, http_server->evhttp);
+	evhttp_set_gencb(http_server->evhttp, default_cb, http_server);
 	if ((bound_socket = evhttp_bind_socket_with_handle(http_server->evhttp, http_server->address, http_server->port)) == NULL) {
                	LOG(LOG_ERR, "faile in bind socket %s:%d", http_server->address, http_server->port);
 		goto fail;
