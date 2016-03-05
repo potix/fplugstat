@@ -14,7 +14,7 @@
 #include "file_util.h"
 #include "stat_store.h"
 
-#define DEFAULT_STORE_POINT "6400000"
+#define DEFAULT_STORE_POINT "550000"
 #define DEFAULT_SAVE_ENABLE "true"
 #define DEFAULT_SAVE_PATH "/var/tmp/fplugstatd"
 
