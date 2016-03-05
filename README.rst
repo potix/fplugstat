@@ -70,8 +70,8 @@ api
     curl -X POST -d "address=<address>" http://127.0.0.1/api/device/datetime
 
 
-config
-------
+config sample
+-------------
 
 ::
 
@@ -79,7 +79,7 @@ config
     # daemon or local0 - local8 or etc
     syslogFacility = daemon
     # emerge, alert, crit, error, warn, notice, info, debug
-    syslogSeverity = debug
+    syslogSeverity = info
     
     [fplug]
     # max fplug device to 7
@@ -100,20 +100,21 @@ config
     httpAddress = 0.0.0.0
     # bind port
     httpPort = 80
+    # static resource path
     httpResourcePath = /usr/share/fplugstat/www
     
     [device1]
-    name=mydesk
-    address = B0:99:28:A4:5E:D5
+    # device name
+    name = myfplug1
+    # device address
+    address = <address>
     
-    #[device2]
-    #name = dev2
-    #address = 00:00:00:00:00:00
-    #
-    #[device3]
-    #name = dev3
-    #address = 00:00:00:00:00:00
-
+    [device2]
+    # device name
+    name = myfplug2
+    # device address
+    address = <address>
+    
 
 troubleshooting
 ---------------
