@@ -89,7 +89,11 @@ config
     
     [stat]
     # store point (realtime)
-    storePoint = 6400000
+    storePoint = 6600000
+    # save stat
+    save_enable = true
+    # save path
+    save_path = /var/tmp/data/fplugstatd
     
     [controller]
     # bind address
