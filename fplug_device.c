@@ -202,6 +202,7 @@ fplug_device_connect(
 			if (bluetooth_device_set_datetime(&fplug_device->bluetooth_device[i])) {
 				LOG(LOG_WARNING, "faild in set datetime to device");
 			}
+			close_bluetooth_device(&fplug_device->bluetooth_device[i]);
 			fplug_device->available_count++;
 		}
         }
@@ -365,15 +366,21 @@ fplug_device_reset(
 		errno = EINVAL;
 		return 1;
 	}
+
 	if (fplug_device_get_bluetooth_device(fplug_device, device_address, &bluetooth_device)) {
 		LOG(LOG_ERR, "not found bluetooth device"); 
+		return 1;
+	}
+
+	if (connect_bluetooth_device(bluetooth_device)) {
+		LOG(LOG_ERR, "can not connect to device"); 
 		return 1;
 	}
 
 	now = time(NULL);
 	if(localtime_r(&now, &now_tm) == NULL) {
 		LOG(LOG_ERR, "failed in get local time");
-		return 1;
+		goto fail;
 	}
 	edt1.hour = now_tm.tm_hour;
 	edt1.min = now_tm.tm_min;
@@ -383,51 +390,51 @@ fplug_device_reset(
 	/* リクエストフレーム書き込み */
 	if (enl_request_frame_init(&bluetooth_device->enl_request_frame_info, 0x0e, 0xf0, 0x00, 0x00, 0x22, 0x00, 0x61)) {
 		LOG(LOG_ERR, "failed in initialize echonet lite frame of initialize");
-		return 1;
+		goto fail;
 	}
 	if (enl_request_frame_add(&bluetooth_device->enl_request_frame_info, 0x97, 0x02, (unsigned char *)&edt1)) {
 		LOG(LOG_ERR, "failed in add data (edt1) to echonet lite frame of initialize");
-		return 1;
+		goto fail;
 	}
 	if (enl_request_frame_add(&bluetooth_device->enl_request_frame_info, 0x98, 0x04, (unsigned char *)&edt2)) {
 		LOG(LOG_ERR, "failed in add data (edt2) to echonet lite frame of initialize");
-		return 1;
+		goto fail;
 	}
 	if (enl_request_frame_get(&bluetooth_device->enl_request_frame_info, &request_frame, &request_frame_len, &request_tid)) {
 		LOG(LOG_ERR, "failed in add data to echonet lite frame of initialize");
-		return 1;
+		goto fail;
 	}
 	if (device_write_request(bluetooth_device->sd, request_frame, request_frame_len)) {
 		LOG(LOG_ERR, "can not write echonet lite request frame of initialize");
-		return 1;	
+		goto fail;	
 	}
 	/* レスポンスフレームの読み出し */
 	if (enl_response_frame_init(&bluetooth_device->enl_response_frame_info, &response_buffer, &response_buffer_len)) {
 		LOG(LOG_ERR, "failed in initalize echonet lite frame of response");
-		return 1;
+		goto fail;
 	}
 	if (device_read_response(bluetooth_device->sd, response_buffer, response_buffer_len)) {
 		LOG(LOG_ERR, "failed in read response of initialize");
-		return 1;
+		goto fail;
 	}
 	while (1) {
 		if (enl_response_frame_add(&bluetooth_device->enl_response_frame_info, &response_buffer, &response_buffer_len)) {
 			LOG(LOG_ERR, "failed in add data to echonet lite frame of response of initialize");
-			return 1;
+			goto fail;
 		}
 		if (response_buffer == NULL) {
 			break;
 		}	
 		if (device_read_response(bluetooth_device->sd, response_buffer, response_buffer_len)) {
 			LOG(LOG_ERR, "failed in read response of initialize");
-			return 1;
+			goto fail;
 		}
 	}
 	/* レスポンスの確認 */
 	enl_response_frame_get_esv(&bluetooth_device->enl_response_frame_info, &esv);
 	if (esv == 0x51) {
 		LOG(LOG_ERR, "nack response (initialize: service = %d)", esv);
-		return 1;
+		goto fail;
 	}
 	enl_response_frame_get_opc(&bluetooth_device->enl_response_frame_info, &opc);
 	LOG(LOG_DEBUG, "initalize: esv = %u, opc = %u", esv, opc);
@@ -440,11 +447,19 @@ fplug_device_reset(
 		unsigned char dummy[6];
 		if (device_read_response(bluetooth_device->sd, dummy, sizeof(dummy))) {
 			LOG(LOG_ERR, "failed in read response");
-			return 1;
+			goto fail;
 		}
 	}
 	
+	close_bluetooth_device(bluetooth_device);
+
 	return 0;
+
+fail:
+	
+	close_bluetooth_device(bluetooth_device);
+
+	return 1;
 }
 
 /* 時刻設定 */
@@ -460,13 +475,19 @@ fplug_device_set_datetime(
 		errno = EINVAL;
 		return 1;
 	}
+
 	if (fplug_device_get_bluetooth_device(fplug_device, device_address, &bluetooth_device)) {
 		LOG(LOG_ERR, "not found bluetooth device"); 
+		return 1;
+	}
+	if (connect_bluetooth_device(bluetooth_device)) {
+		LOG(LOG_ERR, "can not connect to device");
 		return 1;
 	}
 	if (bluetooth_device_set_datetime(bluetooth_device)) {
 		LOG(LOG_ERR, "failed in set datetime to bluetooth device"); 
 	}
+	close_bluetooth_device(bluetooth_device);
 
 	return 0;
 }
@@ -506,13 +527,16 @@ fplug_device_hourly_power_total_foreach(
 		LOG(LOG_ERR, "not found bluetooth device"); 
 		return 1;
 	}
-
+	if (connect_bluetooth_device(bluetooth_device)) {
+		LOG(LOG_ERR, "can not connect to device");
+		return 1;
+	}
 	/* initなら現在時刻としつつ、初期化する方を使う */
 	if (init) {
 		now = time(NULL);
 		if(localtime_r(&now, &now_tm) == NULL) {
 			LOG(LOG_ERR, "failed in get local time");
-			return 1;
+			goto fail;
 		}
 		end_tm = &now_tm;
 		past = 0;
@@ -530,24 +554,24 @@ fplug_device_hourly_power_total_foreach(
 	/* リクエストフレーム書き込み */
 	if (enl_request_any_frame_init(&bluetooth_device->enl_request_any_frame_info, (unsigned char *)&fplug_hourly_power_total_edata, sizeof(fplug_hourly_power_total_edata_t))) {
 		LOG(LOG_ERR, "failed in initialize echonet lite frame of hourly power");
-		return 1;
+		goto fail;
 	}
 	if (enl_request_any_frame_get(&bluetooth_device->enl_request_any_frame_info, &request_frame, &request_frame_len, &request_tid)) {
 		LOG(LOG_ERR, "failed in add data to echonet lite frame of hourly power");
-		return 1;
+		goto fail;
 	}
 	if (device_write_request(bluetooth_device->sd, request_frame, request_frame_len)) {
 		LOG(LOG_ERR, "can not write echonet lite request frame of hourly power");
-		return 1;	
+		goto fail;
 	}
 	/* レスポンスフレームの読み出し */
 	if (enl_response_any_frame_init(&bluetooth_device->enl_response_any_frame_info, 74, &response_buffer, &response_buffer_len)) {
 		LOG(LOG_ERR, "failed in initalize echonet lite frame of response of hourly power");
-		return 1;
+		goto fail;
 	}
 	if (device_read_response(bluetooth_device->sd, response_buffer, response_buffer_len)) {
 		LOG(LOG_ERR, "failed in read response of hourly power");
-		return 1;
+		goto fail;
 	}
 	/* レスポンスの取得 */
 	enl_response_any_frame_get_edata(&bluetooth_device->enl_response_any_frame_info, &response_edata_ptr, NULL);
@@ -555,17 +579,17 @@ fplug_device_hourly_power_total_foreach(
 	if (past) {
 		if (*response_edata_ptr != 0x96) {
 			LOG(LOG_ERR, "invalid response hourly power total (%d)", *response_edata_ptr);
-			return 1;
+			goto fail;
 		}
 	} else {
 		if (*response_edata_ptr != 0x91) {
 			LOG(LOG_ERR, "invalid response hourly power total (%d)", *response_edata_ptr);
-			return 1;
+			goto fail;
 		}
 	}
 	if (*(response_edata_ptr + 1) == 0x01) {
 		LOG(LOG_ERR, "failed in get hourly other data");
-		return 1;
+		goto fail;
 	}
 	fplug_hourly_power_total_data_edt = (fplug_hourly_power_total_data_edt_t *)(response_edata_ptr + 2);
 	for (i = 0; i < 24; i++) {
@@ -577,8 +601,16 @@ fplug_device_hourly_power_total_foreach(
 		foreach_cb(i, fplug_hourly_power_total_data_edt->watt, fplug_hourly_power_total_data_edt->reliability, cb_arg);
 		fplug_hourly_power_total_data_edt++;
 	}
+	close_bluetooth_device(bluetooth_device);
 	
 	return 0;
+
+fail:
+
+	close_bluetooth_device(bluetooth_device);
+
+	return 1;
+
 }
 
 /* 24時間分の温度、湿度、照度を取得 */
@@ -611,7 +643,10 @@ fplug_device_hourly_other_foreach(
 		LOG(LOG_ERR, "not found bluetooth device"); 
 		return 1;
 	}
-
+	if (connect_bluetooth_device(bluetooth_device)) {
+		LOG(LOG_ERR, "can not connect to device");
+		return 1;
+	}
 	fplug_hourly_other_edata.req_type = 0x17;
 	fplug_hourly_other_edata.hour = end_tm->tm_hour;
 	fplug_hourly_other_edata.min = end_tm->tm_min;
@@ -621,35 +656,35 @@ fplug_device_hourly_other_foreach(
 	/* リクエストフレーム書き込み */
 	if (enl_request_any_frame_init(&bluetooth_device->enl_request_any_frame_info, (unsigned char *)&fplug_hourly_other_edata, sizeof(fplug_hourly_other_edata_t))) {
 		LOG(LOG_ERR, "failed in initialize echonet lite frame of of hourly other");
-		return 1;
+		goto fail;
 	}
 	if (enl_request_any_frame_get(&bluetooth_device->enl_request_any_frame_info, &request_frame, &request_frame_len, &request_tid)) {
 		LOG(LOG_ERR, "failed in add data to echonet lite frame of of hourly other");
-		return 1;
+		goto fail;
 	}
 	if (device_write_request(bluetooth_device->sd, request_frame, request_frame_len)) {
 		LOG(LOG_ERR, "can not write echonet lite request frame of hourly other");
-		return 1;	
+		goto fail;
 	}
 	/* レスポンスフレームの読み出し */
 	if (enl_response_any_frame_init(&bluetooth_device->enl_response_any_frame_info, 122, &response_buffer, &response_buffer_len)) {
 		LOG(LOG_ERR, "failed in initalize echonet lite frame of response of hourly other");
-		return 1;
+		goto fail;
 	}
 	if (device_read_response(bluetooth_device->sd, response_buffer, response_buffer_len)) {
 		LOG(LOG_ERR, "failed in read response of hourly other");
-		return 1;
+		goto fail;
 	}
 	/* レスポンスの取得 */
 	enl_response_any_frame_get_edata(&bluetooth_device->enl_response_any_frame_info, &response_edata_ptr, NULL);
 	/* レスポンスチェック */
 	if (*response_edata_ptr != 0x97) {
 		LOG(LOG_ERR, "invalid response hourly other (%d)", *response_edata_ptr);
-		return 1;
+		goto fail;
 	}
 	if (*(response_edata_ptr + 1) == 0x01) {
 		LOG(LOG_ERR, "failed in get hourly other data");
-		return 1;
+		goto fail;
 	}
 	fplug_hourly_other_data_edt = (fplug_hourly_other_data_edt_t *)(response_edata_ptr + 2);
 	for (i = 0; i < 24; i++) {
@@ -662,8 +697,15 @@ fplug_device_hourly_other_foreach(
 		foreach_cb(i, ((double)fplug_hourly_other_data_edt->temperature)/10, fplug_hourly_other_data_edt->humidity, fplug_hourly_other_data_edt->illuminance, cb_arg);
 		fplug_hourly_other_data_edt++;
 	}
+	close_bluetooth_device(bluetooth_device);
 	
 	return 0;
+
+fail:
+
+	close_bluetooth_device(bluetooth_device);
+
+	return 1;
 }
 
 static int
@@ -724,7 +766,7 @@ fplug_device_get_bluetooth_device(
         strlcpy(addr, device_address, sizeof(addr));
         for (i = 0; i < fplug_device->max_device; i++) {
                 btdev = &fplug_device->bluetooth_device[i];
-                if (btdev->connected && strcmp(btdev->device_address, addr) == 0) {
+                if (strcmp(btdev->device_address, addr) == 0) {
                         *bluetooth_device = btdev;
                         return 0;
                 }
@@ -797,11 +839,13 @@ fplug_device_polling(
 
 	for (i = 0; i < fplug_device->max_device; i++) {
                 bluetooth_device = &fplug_device->bluetooth_device[i];
-		if (bluetooth_device->connected) {
-			if (bluetooth_device_realtime_stat(bluetooth_device)) {
-				LOG(LOG_DEBUG, "failed in get realtime statistics");
-			}
-                }
+		if (connect_bluetooth_device(&fplug_device->bluetooth_device[i])) {
+			continue;
+		}
+		if (bluetooth_device_realtime_stat(bluetooth_device)) {
+			LOG(LOG_DEBUG, "failed in get realtime statistics");
+		}
+		close_bluetooth_device(&fplug_device->bluetooth_device[i]);
         }
 }
 
