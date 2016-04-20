@@ -290,9 +290,9 @@ fplug_device_active_device_foreach(
 
 	for (i = 0; i < fplug_device->max_device; i++) {
                 bluetooth_device = &fplug_device->bluetooth_device[i];
-		if (bluetooth_device->connected) {
+		if (bluetooth_device->device_name[0] != '\0' && bluetooth_device->device_address[0] != '\0') {
 			foreach_cb(bluetooth_device->device_name, bluetooth_device->device_address, cb_arg);
-                }
+		}
         }
 
 	return 0;
@@ -322,7 +322,7 @@ fplug_device_stat_store_foreach(
 	strlcpy(addr, device_address, sizeof(addr));
 	for (i = 0; i < fplug_device->max_device; i++) {
                 bluetooth_device = &fplug_device->bluetooth_device[i];
-		if (bluetooth_device->connected && strcmp(bluetooth_device->device_address, addr) == 0) {
+		if (strcmp(bluetooth_device->device_address, addr) == 0) {
 			if (stat_store_stat_foreach(bluetooth_device->stat_store, mktime(start_tm), mktime(end_tm), foreach_cb, cb_arg)) {
 				LOG(LOG_ERR, "failed in stat store foreach"); 
 				return 1;
