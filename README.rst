@@ -18,6 +18,7 @@ prepare
     sudo hcitool scan 
     sudo bluetooth-agent 1234 <address>
     sudo l2ping <address>
+    sudo sdptool browse <address>
     sudo vi /etc/bluetooth/rfcomm.conf
     rfcomm0 {
             # Automatically bind the device at startup
